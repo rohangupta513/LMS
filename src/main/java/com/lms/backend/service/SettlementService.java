@@ -72,7 +72,12 @@ public class SettlementService {
       }
     }
 
-    double maxAllowedPayment = 0.0;
+    LanCharge lanCharge = lanChargeRepository.findById(account.getLan()).orElse(null);
+    double globalPenalCharges = lanCharge != null ? lanCharge.getPenalCharges() : 0.0;
+    double globalOtherFees = lanCharge != null ? lanCharge.getOtherFees() : 0.0;
+    double globalChargesDue = globalPenalCharges + globalOtherFees;
+
+    double maxAllowedPayment = globalChargesDue;
     for (RepaymentScheduler due : dues) {
       if (account.getStatus() == LoanStatus.PENDING_FORECLOSURE || 
           account.getStatus() == LoanStatus.PENDING_CANCELLATION || 
@@ -82,7 +87,11 @@ public class SettlementService {
     }
 
     if (request.getAmount() > round(maxAllowedPayment)) {
-      throw new RuntimeException("Payment exceeds current dues. To pay off the entire loan, please request a Foreclosure.");
+      if (account.getStatus() == LoanStatus.PENDING_FORECLOSURE || account.getStatus() == LoanStatus.PENDING_CANCELLATION) {
+        throw new RuntimeException("Payment exceeds total outstanding amount.");
+      } else {
+        throw new RuntimeException("Payment exceeds current dues. To pay off the entire loan, please request a Foreclosure.");
+      }
     }
 
     LoanCredit credit =
@@ -119,10 +128,6 @@ public class SettlementService {
         }
       }
     }
-    LanCharge lanCharge = lanChargeRepository.findById(account.getLan()).orElse(null);
-    double globalPenalCharges = lanCharge != null ? lanCharge.getPenalCharges() : 0.0;
-    double globalOtherFees = lanCharge != null ? lanCharge.getOtherFees() : 0.0;
-    double globalChargesDue = globalPenalCharges + globalOtherFees;
     double globalTotalDue = globalDueForThisMonth + globalDueFromPreviousMonths + globalChargesDue;
 
     boolean globalChargesPaid = false;
@@ -331,6 +336,12 @@ public class SettlementService {
         due.setTotalOutstandingAmount(0.0);
         due.setTotalOutstandingPrinciple(0.0);
         due.setTotalOutstandingInterest(0.0);
+
+        LoanAccount account = loanAccountRepository.findById(lan).orElse(null);
+        if (account != null) {
+          account.setStatus(LoanStatus.CLOSED);
+          loanAccountRepository.save(account);
+        }
       } else {
         LanCharge lanCharge = lanChargeRepository.findById(lan).orElse(null);
         double globalCharges = lanCharge != null ? (lanCharge.getPenalCharges() + lanCharge.getOtherFees()) : 0.0;

@@ -473,7 +473,6 @@ async function renderLoanDetails(lan) {
                 <input type="number" id="pay_amt" placeholder="Amount">
                 <input type="date" id="pay_date" placeholder="Date">
                 <button class="btn btn-success" onclick="makePayment(${acc.lan})">Process Payment</button>
-                <button class="btn btn-info" onclick="fetchNextDueStatus(${acc.lan})">Fetch Next Due Breakup</button>
             </div>
         </div>
         
@@ -485,7 +484,7 @@ async function renderLoanDetails(lan) {
         
         <div class="card" id="credits_box"><h3>Loan Credits (Loading...)</h3></div>
         
-        <div class="card" id="audits_box"><h3>Settlement Audits (Loading...)</h3></div>
+        <div class="card" id="audits_box"><h3>Statement Audits (Loading...)</h3></div>
     `;
     
     // Load Ledger
@@ -603,7 +602,7 @@ async function renderLoanDetails(lan) {
         const audits = await fetchAPI(`/api/settlement/audits/${acc.lan}`);
         if(audits && audits.length > 0) {
             document.getElementById('audits_box').innerHTML = `
-                <h3>Settlement Audits (Distributions)</h3>
+                <h3>Statement Audits (Distributions)</h3>
                 <table>
                     <tr><th>Audit ID</th><th>Cred ID</th><th>RPS ID</th><th>LAN</th><th>Due Date</th><th>Due (Month)</th><th>Due (Prev)</th><th>Due (Charges)</th><th>Total Due</th><th>Credit Date</th><th>Amt Derived</th><th>Prin Derived</th><th>Int Derived</th><th>Char Derived</th><th>Settled</th><th>Status</th></tr>
                     ${audits.map(a => `
@@ -618,7 +617,7 @@ async function renderLoanDetails(lan) {
                 </table>
             `;
         } else {
-            document.getElementById('audits_box').innerHTML = `<h3>Settlement Audits</h3><p>No distribution audits yet.</p>`;
+            document.getElementById('audits_box').innerHTML = `<h3>Statement Audits</h3><p>No distribution audits yet.</p>`;
         }
     } catch(e) {}
 }
@@ -667,33 +666,6 @@ window.activateAccount = async function(lan) {
         } catch(e) {
             alert("Failed to activate account: " + e);
         }
-    }
-}
-
-window.fetchNextDueStatus = async function(lan) {
-    try {
-        const payDate = document.getElementById('pay_date').value;
-        let url = `/api/lms/accounts/${lan}/next-due-status`;
-        if (payDate) {
-            url += `?date=${payDate}`;
-        }
-        const res = await fetchAPI(url);
-        if (res.message) {
-            alert(res.message);
-        } else {
-            alert(`NEXT DUE BREAKUP\n\n` +
-                  `Due Date: ${res.dueDate}\n` +
-                  `Days Past Due (DPD): ${res.dpd}\n\n` +
-                  `Principal: ₹${res.principal}\n` +
-                  `Interest: ₹${res.interest}\n` +
-                  `Charges (incl penalties): ₹${res.charges}\n` +
-                  `---------------------------\n` +
-                  `TOTAL DUE: ₹${res.totalDue}`);
-        }
-        // Re-render in case the penalty calculation changed the ledger numbers on the screen!
-        renderLoanDetails(lan); 
-    } catch(e) {
-        alert(e);
     }
 }
 
