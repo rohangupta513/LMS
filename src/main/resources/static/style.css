@@ -42,9 +42,9 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 
 .toast { position: fixed; bottom: 20px; right: 20px; background: var(--primary); color: white; padding: 1rem; border-radius: 4px; display: none; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 .badge { padding: 0.25rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
-.badge-PENDING { background: #f59e0b; color: white; }
+.badge-LOAN_APPLIED { background: #f59e0b; color: white; }
 .badge-PENDING_CANCELLATION { background: #f97316; color: white; }
-.badge-SUCCESS { background: var(--success); color: white; }
+.badge-ACTIVE { background: var(--success); color: white; }
 .badge-REJECTED { background: var(--danger); color: white; }
 .badge-CANCELLED { background: var(--text-muted); color: white; }
 .badge-FORECLOSED { background: #8b5cf6; color: white; }

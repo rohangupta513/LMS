@@ -1,10 +1,10 @@
 package com.lms.backend.enums;
 
 public enum LoanStatus {
-  PENDING,
+  LOAN_APPLIED,
   PROCESSING,
   VERIFIED,
-  SUCCESS,
+  ACTIVE,
   PENDING_CANCELLATION,
   PENDING_FORECLOSURE,
   CANCELLED,

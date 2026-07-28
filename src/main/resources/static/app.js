@@ -423,7 +423,7 @@ window.doApply = async function() {
     `;
 }
 window.verifyLoan = async function(lan) {
-    await fetchAPI(`/api/lms/${lan}/verify?status=SUCCESS`, 'PUT');
+    await fetchAPI(`/api/lms/${lan}/verify?status=ACTIVE`, 'PUT');
     showToast('Loan Verified Successfully!');
     history.pushState(null, '', `/lms/${lan}`);
     router();
@@ -439,16 +439,18 @@ async function renderLoanDetails(lan) {
             <a href="/lms" class="btn btn-secondary">← Back to LMS</a>
         </div>
         
-        <div class="grid-2">
-            <div class="card">
-                <h3>Account Summary</h3>
+        <div class="card">
+            <h3>Account Summary</h3>
                 <p><strong>Status:</strong> <span class="badge badge-${acc.status}">${acc.status}</span></p>
                 <p><strong>User ID:</strong> ${acc.userId}</p>
                 <p><strong>Amount:</strong> ${acc.amount}</p>
                 <p><strong>Rate:</strong> ${acc.rateOfInterest}%</p>
                 <p><strong>Time:</strong> ${acc.timePeriod}</p>
                 <br>
-                ${acc.status !== 'CANCELLED' && acc.status !== 'FORECLOSED' && acc.status !== 'PENDING_CANCELLATION' && acc.status !== 'PENDING_FORECLOSURE' ? `
+                ${acc.status === 'LOAN_APPLIED' ? `
+                    <button class="btn btn-success" onclick="verifyLoan(${acc.lan})">Verify & Approve Now</button>
+                ` : ''}
+                ${acc.status === 'ACTIVE' ? `
                     <button class="btn btn-danger" onclick="cancelLoan(${acc.lan})">Cancel Loan</button>
                     <button class="btn btn-danger" style="background:#8b5cf6;" onclick="forecloseLoan(${acc.lan})">Foreclose Loan</button>
                 ` : ''}
@@ -460,14 +462,7 @@ async function renderLoanDetails(lan) {
                     <button class="btn btn-success" onclick="verifyForeclosure(${acc.lan})">Verify Foreclosure</button>
                     <button class="btn btn-info" onclick="activateAccount(${acc.lan})">Activate Account</button>
                 ` : ''}
-                <hr style="margin-top: 15px; margin-bottom: 15px; border: 0; border-top: 1px solid #e5e7eb;">
-                <button class="btn btn-danger" style="background:#dc2626; width: 100%;" onclick="deleteLoanAccount(${acc.lan})">Delete Account</button>
             </div>
-            
-            <div class="card" id="ledger_box">
-                <h3>Ledger (Loading...)</h3>
-            </div>
-        </div>
         
         <div class="card">
             <h3>Make Payment</h3>
@@ -488,18 +483,14 @@ async function renderLoanDetails(lan) {
         
         <div class="card" id="audits_box"><h3>Statement Audits (Loading...)</h3></div>
     `;
-    
-    // Load Ledger
-    try {
-        const due = await fetchAPI(`/api/lms/accounts/${acc.lan}/dues`);
-        document.getElementById('ledger_box').innerHTML = `
-            <h3>Ledger Totals</h3>
-            <p><strong>Total Outstanding:</strong> ${due.totalOutstandingAmount || 0}</p>
-            <p><strong>Next Due Date:</strong> ${due.nextDueDate || '-'}</p>
-            <p><strong>Next Due Amount:</strong> ${due.nextDueAmount || 0}</p>
-            <p><strong>Settled:</strong> ${due.isSettled ? 'Yes' : 'No'}</p>
-        `;
-    } catch(e) { document.getElementById('ledger_box').innerHTML = `<h3>Ledger</h3><p>Not generated yet.</p>`; }
+    if (acc.status === 'LOAN_APPLIED') {
+        document.getElementById('snapshot_box').innerHTML = `<h3>Current Snapshot</h3><p>Not applicable yet.</p>`;
+        document.getElementById('charges_box').innerHTML = `<h3>LAN Charges</h3><p>Not applicable yet.</p>`;
+        document.getElementById('schedules_box').innerHTML = `<h3>Schedules</h3><p>Not generated yet.</p>`;
+        document.getElementById('credits_box').innerHTML = `<h3>Loan Credits</h3><p>Not applicable yet.</p>`;
+        document.getElementById('audits_box').innerHTML = `<h3>Statement Audits</h3><p>Not applicable yet.</p>`;
+        return;
+    }
 
     // Load Current Snapshot
     try {

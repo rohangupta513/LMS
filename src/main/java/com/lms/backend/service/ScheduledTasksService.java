@@ -25,8 +25,8 @@ public class ScheduledTasksService {
         
         List<LoanAccount> allAccounts = loanApplicationService.getAllLoanAccounts();
         for (LoanAccount account : allAccounts) {
-            // Only calculate for accounts that are SUCCESS (active)
-            if ("SUCCESS".equals(account.getStatus().name())) {
+            // Only calculate for accounts that are ACTIVE
+            if ("ACTIVE".equals(account.getStatus().name())) {
                 try {
                     loanApplicationService.calculateDpdAndPenalties(account.getLan(), LocalDate.now());
                 } catch (Exception e) {
