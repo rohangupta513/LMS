@@ -581,7 +581,7 @@ async function renderLoanDetails(lan) {
                     ${credits.map(c => `
                         <tr>
                             <td>${c.credId}</td><td>${c.lan}</td><td>${c.dateOfCredit}</td><td>${c.amtCredited}</td>
-                            <td>${c.amountDerived}</td><td>${c.totalPrincipleDerived}</td>
+                            <td>${c.totalPrincipleDerived + c.totalInterestDerived + c.totalChargesDerived}</td><td>${c.totalPrincipleDerived}</td>
                             <td>${c.totalInterestDerived}</td><td>${c.totalChargesDerived}</td>
                             <td><span class="badge badge-${c.status}">${c.status}</span></td>
                             <td>

@@ -604,12 +604,12 @@ public class LoanApplicationService {
     }
 
     if (!foundAny) {
-      // Fallback to the very next upcoming due if they pick an early date
+      // No dues are strictly due as of the calcDate (e.g. they paid early)
       RepaymentScheduler nextDue = dues.get(0);
       response.put("dpd", globalDpd);
-      response.put("totalDue", nextDue.getTotalDue() + globalCharges);
-      response.put("principal", nextDue.getTotalPrincipalDue());
-      response.put("interest", nextDue.getTotalInterestDue());
+      response.put("totalDue", globalCharges);
+      response.put("principal", 0.0);
+      response.put("interest", 0.0);
       response.put("charges", globalCharges);
       response.put("dueDate", nextDue.getDueDate().toString());
     } else {
