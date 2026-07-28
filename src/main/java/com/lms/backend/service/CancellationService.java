@@ -62,9 +62,9 @@ public class CancellationService {
     if (lanCharge == null) {
       lanCharge = new LanCharge();
       lanCharge.setLan(lan);
-      lanCharge.setDpd(0);
-      lanCharge.setPenalCharges(0.0);
     }
+    lanCharge.setDpd(0);
+    lanCharge.setPenalCharges(0.0);
 
     // Assuming a flat cancellation fee of 500
     lanCharge.setOtherFees(500.0);

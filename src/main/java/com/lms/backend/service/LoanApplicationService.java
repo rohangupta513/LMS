@@ -277,14 +277,23 @@ public class LoanApplicationService {
       }
     }
 
+    // If penal charges were wiped (e.g. during cancellation) and DPD > 0, 
+    // recalculate them fully from the oldest due date.
+    if (accountDpd > 0 && lanCharge.getPenalCharges() == 0.0) {
+        lanCharge.setPenalCharges(accountDpd * 10.0);
+        lanCharge.setLastCalculatedDate(calculationDate);
+    }
+
     lanCharge.setDpd(accountDpd);
 
-    if (accountDpd > 0 && lanCharge.getLastCalculatedDate().isBefore(calculationDate)) {
+    if (accountDpd > 0 && lanCharge.getLastCalculatedDate() != null && lanCharge.getLastCalculatedDate().isBefore(calculationDate)) {
       long daysToCharge = java.time.temporal.ChronoUnit.DAYS.between(lanCharge.getLastCalculatedDate(), calculationDate);
       if (daysToCharge > 0) {
         lanCharge.setPenalCharges(round(lanCharge.getPenalCharges() + (daysToCharge * 10.0)));
         lanCharge.setLastCalculatedDate(calculationDate);
       }
+    } else if (lanCharge.getLastCalculatedDate() == null) {
+      lanCharge.setLastCalculatedDate(calculationDate);
     }
     
     lanChargeRepository.save(lanCharge);
