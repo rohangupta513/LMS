@@ -84,11 +84,10 @@ public class LoanApplicationService {
           request.getTimePeriod(), loan.getLoanTimeMin(), loan.getLoanTimeMax()));
     }
 
-    List<LoanAccount> existingLoans = loanAccountRepository.findAll(); // Simplified counting
-    long activeLoansCount = existingLoans.stream()
-        .filter(l -> l.getUser() != null && l.getUser().getUserId().equals(user.getUserId()))
-        .filter(l -> l.getStatus() != LoanStatus.CANCELLED && l.getStatus() != LoanStatus.FORECLOSED)
-        .count();
+    long activeLoansCount = loanAccountRepository.countActiveLoansByUserId(
+        user.getUserId(),
+        java.util.Arrays.asList(LoanStatus.CANCELLED, LoanStatus.FORECLOSED)
+    );
 
     if (activeLoansCount >= 3) {
       throw new RuntimeException("Maximum loan limit reached. A user can have a maximum of 3 loans at a time.");

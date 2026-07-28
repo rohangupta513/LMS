@@ -479,7 +479,7 @@ async function renderLoanDetails(lan) {
         
         <div class="card" id="schedules_box"><h3>Schedules (Loading...)</h3></div>
         
-        <div class="card" id="credits_box"><h3>Loan Credits (Loading...)</h3></div>
+        <div class="card" id="credits_box"><h3>Loan Credits Table (Loading...)</h3></div>
         
         <div class="card" id="audits_box"><h3>Statement Audits (Loading...)</h3></div>
     `;
@@ -499,7 +499,7 @@ async function renderLoanDetails(lan) {
             document.getElementById('snapshot_box').innerHTML = `<h3>Current Dues Snapshot</h3><p>${snap.message}</p>`;
         } else {
             document.getElementById('snapshot_box').innerHTML = `
-                <h3>Current Dues Snapshot (As of Today)</h3>
+                <h3>Loan Account Dues Table </h3>
                 <table>
                     <tr>
                         <th>Due Principal</th>
@@ -567,7 +567,7 @@ async function renderLoanDetails(lan) {
         const credits = await fetchAPI(`/api/settlement/credits/${acc.lan}`);
         if(credits && credits.length > 0) {
             document.getElementById('credits_box').innerHTML = `
-                <h3>Loan Credits (Payments)</h3>
+                <h3>Loan Credits Table</h3>
                 <table>
                     <tr><th>Cred ID</th><th>LAN</th><th>Date</th><th>Requested Amt</th><th>Derived Amt</th><th>Principal Derived</th><th>Interest Derived</th><th>Charges Derived</th><th>Status</th><th>Actions</th></tr>
                     ${credits.map(c => `
