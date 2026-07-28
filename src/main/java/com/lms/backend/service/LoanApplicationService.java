@@ -9,6 +9,7 @@ import com.lms.backend.enums.RepaymentStatus;
 import com.lms.backend.repository.*;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,7 @@ public class LoanApplicationService {
   @Autowired private RepaymentSchedulerRepository repaymentSchedulerRepository;
   @Autowired private LoanCreditRepository loanCreditRepository;
   @Autowired private LanChargeRepository lanChargeRepository;
+  @Autowired private SettlementAuditRepository settlementAuditRepository;
 
   /**
    * Retrieves a list of available loans based on the user's requested criteria.
@@ -69,6 +71,19 @@ public class LoanApplicationService {
             .findById(request.getLoanId())
             .orElseThrow(() -> new RuntimeException("Loan not found"));
 
+    if (request.getAmount() < loan.getLoanAmountMin() || request.getAmount() > loan.getLoanAmountMax()) {
+      throw new RuntimeException(String.format("Loan amount (%.2f) must be between %.2f and %.2f.",
+          request.getAmount(), loan.getLoanAmountMin(), loan.getLoanAmountMax()));
+    }
+    if (request.getRateOfInterest() < loan.getLoanInterestMin() || request.getRateOfInterest() > loan.getLoanInterestMax()) {
+      throw new RuntimeException(String.format("Rate of interest (%.2f%%) must be between %.2f%% and %.2f%%.",
+          request.getRateOfInterest(), loan.getLoanInterestMin(), loan.getLoanInterestMax()));
+    }
+    if (request.getTimePeriod() < loan.getLoanTimeMin() || request.getTimePeriod() > loan.getLoanTimeMax()) {
+      throw new RuntimeException(String.format("Time period (%d months) must be between %d and %d months.",
+          request.getTimePeriod(), loan.getLoanTimeMin(), loan.getLoanTimeMax()));
+    }
+
     List<LoanAccount> existingLoans = loanAccountRepository.findAll(); // Simplified counting
     long activeLoansCount = existingLoans.stream()
         .filter(l -> l.getUser() != null && l.getUser().getUserId().equals(user.getUserId()))
@@ -102,6 +117,7 @@ public class LoanApplicationService {
    * @param status The status to set.
    * @return The updated LoanAccount.
    */
+  @Transactional
   public LoanAccount verifyStatus(Long lan, LoanStatus status) {
     LoanAccount account =
         loanAccountRepository
@@ -187,22 +203,24 @@ public class LoanApplicationService {
    * Enforces a 5-day rule, marks the loan as PENDING_CANCELLATION,
    * cancels existing schedules, and creates a specific schedule for the fee.
    */
+  @Transactional
   public LoanAccount cancelLoan(Long lan, java.time.LocalDate dateOfCancellation) {
-    LoanAccount account =
-        loanAccountRepository
-            .findById(lan)
-            .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+    LoanAccount account = loanAccountRepository.findById(lan)
+        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
 
-    long daysSinceStart = java.time.temporal.ChronoUnit.DAYS.between(account.getStartDate(), dateOfCancellation);
-    if (daysSinceStart > 5) {
-      throw new RuntimeException("Cannot cancel loan: request is after 5 days of origination.");
+    if (account.getStatus() != LoanStatus.SUCCESS) {
+      throw new RuntimeException("Only active loans can be cancelled.");
     }
 
-    double CANCELLATION_CHARGE = 500.0;
-    account.setStatus(LoanStatus.PENDING_CANCELLATION);
-    loanAccountRepository.save(account);
+    java.time.LocalDate actualDate = dateOfCancellation != null ? dateOfCancellation : java.time.LocalDate.now();
+    long daysSinceStart = java.time.temporal.ChronoUnit.DAYS.between(account.getStartDate(), actualDate);
+    if (daysSinceStart > 5) {
+      throw new RuntimeException("Cancellation rejected: A loan can only be cancelled within 5 days of its start date.");
+    }
 
-    // Mark all existing pending schedulers as cancelled
+    account.setStatus(LoanStatus.PENDING_CANCELLATION);
+
+    // Halt scheduled dues
     List<RepaymentScheduler> dues =
         repaymentSchedulerRepository.findByLoanAccount_LanAndStatusOrderByDueDateAsc(
             lan, RepaymentStatus.PENDING);
@@ -211,78 +229,71 @@ public class LoanApplicationService {
       repaymentSchedulerRepository.save(r);
     }
 
-    // Instead of a dedicated schedule, add the fee to LanCharge
     LanCharge lanCharge = lanChargeRepository.findById(lan).orElse(null);
     if (lanCharge == null) {
       lanCharge = new LanCharge();
       lanCharge.setLan(lan);
       lanCharge.setDpd(0);
       lanCharge.setPenalCharges(0.0);
-      lanCharge.setOtherFees(0.0);
-      lanCharge.setLastCalculatedDate(LocalDate.now());
     }
-    lanCharge.setPenalCharges(0.0); // Penal charges are waived on cancellation
-    lanCharge.setOtherFees(lanCharge.getOtherFees() + CANCELLATION_CHARGE);
+
+    // Assuming a flat cancellation fee of 500
+    lanCharge.setOtherFees(500.0);
     lanChargeRepository.save(lanCharge);
 
-    // Sync the ledger
-    loanAccountDueRepository
-        .findById(lan)
-        .ifPresent(
-            due -> {
-              due.setNextDueDate(account.getStartDate().plusDays(5));
-              due.setNextDueAmount(CANCELLATION_CHARGE);
-              due.setTotalOutstandingAmount(CANCELLATION_CHARGE);
-              due.setTotalChargesDue(CANCELLATION_CHARGE);
-              due.setTotalOutstandingPrinciple(0.0);
-              due.setTotalOutstandingInterest(0.0);
-              loanAccountDueRepository.save(due);
-            });
+    // Update Ledger to reflect cancellation state
+    com.lms.backend.entity.LoanAccountDue due =
+        loanAccountDueRepository
+            .findById(lan)
+            .orElseThrow(() -> new RuntimeException("Loan Account Due not found"));
 
-    return account;
+    due.setTotalOutstandingAmount(round(account.getAmount() + 500.0)); // Principal + Fee
+    due.setTotalOutstandingPrinciple(account.getAmount());
+    due.setTotalOutstandingInterest(0.0);
+    due.setTotalChargesDue(500.0);
+    due.setNextDueDate(LocalDate.now()); // Due immediately
+    due.setNextDueAmount(round(account.getAmount() + 500.0));
+    due.setNextDuePrinciple(account.getAmount());
+    due.setNetDueInterest(0.0);
+    due.setNextDueCharges(500.0);
+
+    loanAccountDueRepository.save(due);
+    return loanAccountRepository.save(account);
   }
 
   /**
-   * Verifies a pending cancellation.
-   * Checks if the fee schedule is PAID and paid within 5 days.
+   * Verifies a cancellation payment and marks the loan as CANCELLED.
+   * @param lan The Loan Account Number (Long).
+   * @return The updated LoanAccount entity.
    */
+
+  @Transactional
   public LoanAccount verifyCancellation(Long lan) {
-    LoanAccount account =
-        loanAccountRepository
-            .findById(lan)
-            .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+    LoanAccount account = loanAccountRepository.findById(lan)
+        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
 
     if (account.getStatus() != LoanStatus.PENDING_CANCELLATION) {
-      throw new RuntimeException("Loan is not in PENDING_CANCELLATION status.");
+      throw new RuntimeException("Account is not pending cancellation.");
     }
 
-    // Since we created a dedicated schedule for the fee, it's the only one that could be PAID if settled.
-    // However, we should just check the LoanAccountDue ledger to see if it's settled.
     com.lms.backend.entity.LoanAccountDue ledger = loanAccountDueRepository.findById(lan).orElseThrow();
-    if (!ledger.getIsSettled()) {
-      throw new RuntimeException("Cancellation fee has not been paid yet.");
+
+    if (ledger.getTotalOutstandingAmount() > 0) {
+      throw new RuntimeException("Cannot verify cancellation. Dues are not fully settled.");
     }
 
-    // Check when it was paid by looking at the LoanCredit history
+    // Verify all associated cancellation credits are SUCCESS (Handled in SettlementService usually, but double checking here)
     List<com.lms.backend.entity.LoanCredit> credits = loanCreditRepository.findByLoanAccount_Lan(lan);
-    if (credits.isEmpty()) {
-      throw new RuntimeException("No payments found for this loan. Please pay the cancellation fee.");
+    for (com.lms.backend.entity.LoanCredit credit : credits) {
+      if ("PENDING".equals(credit.getStatus()) || "PENDING_LENDER_VERIFICATION".equals(credit.getStatus())) {
+        throw new RuntimeException("There are pending payments that need verification first.");
+      }
     }
-    
-    java.time.LocalDate paymentDate = credits.stream()
-        .map(com.lms.backend.entity.LoanCredit::getDateOfCredit)
-        .max(java.util.Comparator.naturalOrder())
-        .orElseThrow();
-        
-    long daysSinceStart = java.time.temporal.ChronoUnit.DAYS.between(account.getStartDate(), paymentDate);
-    if (daysSinceStart > 5) {
-      throw new RuntimeException("Cancellation rejected: The cancellation fee was not paid within the strict 5-day window.");
-    }
-    
+
     account.setStatus(LoanStatus.CANCELLED);
-    ledger.setIsCancelled(true);
+    ledger.setIsSettled(true);
     loanAccountDueRepository.save(ledger);
-    
+
     return loanAccountRepository.save(account);
   }
 
@@ -294,6 +305,7 @@ public class LoanApplicationService {
    * @param lan The Loan Account Number (Long) to foreclose.
    * @return The updated LoanAccount.
    */
+  @Transactional
   public LoanAccount forecloseLoan(Long lan) {
     LoanAccount account =
         loanAccountRepository
@@ -367,6 +379,7 @@ public class LoanApplicationService {
    * Verifies a pending foreclosure.
    * Checks if the foreclosure fee and remaining dues have been fully paid.
    */
+  @Transactional
   public LoanAccount verifyForeclosure(Long lan) {
     LoanAccount account =
         loanAccountRepository
@@ -578,18 +591,24 @@ public class LoanApplicationService {
         .findByLoanAccount_LanAndStatusOrderByDueDateAsc(lan, RepaymentStatus.PENDING);
 
     java.util.Map<String, Object> response = new java.util.HashMap<>();
+    
+    LanCharge lanCharge = lanChargeRepository.findById(lan).orElse(null);
+    double globalCharges = lanCharge != null ? (lanCharge.getPenalCharges() + lanCharge.getOtherFees()) : 0.0;
+    int globalDpd = lanCharge != null ? lanCharge.getDpd() : 0;
+
     if (dues.isEmpty()) {
-      response.put("message", "No pending dues found.");
+      response.put("dpd", globalDpd);
+      response.put("totalDue", globalCharges);
+      response.put("principal", 0.0);
+      response.put("interest", 0.0);
+      response.put("charges", globalCharges);
+      response.put("dueDate", "-");
       return response;
     }
 
     double totalDue = 0, principal = 0, interest = 0;
     String lastDueDate = "";
     boolean foundAny = false;
-
-    LanCharge lanCharge = lanChargeRepository.findById(lan).orElse(null);
-    double globalCharges = lanCharge != null ? (lanCharge.getPenalCharges() + lanCharge.getOtherFees()) : 0.0;
-    int globalDpd = lanCharge != null ? lanCharge.getDpd() : 0;
 
     for (RepaymentScheduler due : dues) {
       if (account.getStatus() == LoanStatus.PENDING_FORECLOSURE || 
@@ -640,5 +659,37 @@ public class LoanApplicationService {
 
   public LanCharge getLanCharge(Long lan) {
     return lanChargeRepository.findById(lan).orElse(null);
+  }
+
+  /**
+   * Deletes a loan account and cascades deletion to all associated records.
+   *
+   * @param lan The Loan Account Number (Long).
+   * @return The deleted LoanAccount entity.
+   */
+  public LoanAccount deleteLoanAccount(Long lan) {
+    log.info("Deleting loan account with LAN: {}", lan);
+    LoanAccount account = loanAccountRepository.findById(lan)
+        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+
+    // 1. Delete SettlementAudits
+    settlementAuditRepository.deleteAll(settlementAuditRepository.findByLoanAccount_Lan(lan));
+
+    // 2. Delete LoanCredits
+    loanCreditRepository.deleteAll(loanCreditRepository.findByLoanAccount_Lan(lan));
+
+    // 3. Delete RepaymentSchedulers
+    repaymentSchedulerRepository.deleteAll(repaymentSchedulerRepository.findByLoanAccount_LanOrderByDueDateAsc(lan));
+
+    // 4. Delete LoanAccountDue
+    loanAccountDueRepository.deleteById(lan);
+
+    // 5. Delete LanCharge
+    lanChargeRepository.findById(lan).ifPresent(lanChargeRepository::delete);
+
+    // 6. Delete LoanAccount
+    loanAccountRepository.delete(account);
+
+    return account;
   }
 }

@@ -460,6 +460,8 @@ async function renderLoanDetails(lan) {
                     <button class="btn btn-success" onclick="verifyForeclosure(${acc.lan})">Verify Foreclosure</button>
                     <button class="btn btn-info" onclick="activateAccount(${acc.lan})">Activate Account</button>
                 ` : ''}
+                <hr style="margin-top: 15px; margin-bottom: 15px; border: 0; border-top: 1px solid #e5e7eb;">
+                <button class="btn btn-danger" style="background:#dc2626; width: 100%;" onclick="deleteLoanAccount(${acc.lan})">Delete Account</button>
             </div>
             
             <div class="card" id="ledger_box">
@@ -683,6 +685,18 @@ window.makePayment = async function(lan) {
     await fetchAPI(`/api/settlement/credit`, 'POST', { lan: lan, amount: amt, dateOfCredit: date || undefined });
     showToast('Payment processed!');
     renderLoanDetails(lan);
+}
+
+window.deleteLoanAccount = async function(lan) {
+    if(confirm('WARNING: This will permanently delete the loan account and all associated schedules and payments! Are you sure?')) {
+        try {
+            await fetchAPI(`/api/lms/accounts/${lan}`, 'DELETE');
+            showToast('Account Deleted Successfully');
+            window.location.hash = ''; // Return to home
+        } catch(e) {
+            alert("Failed to delete account: " + e);
+        }
+    }
 }
 
 // Initialize

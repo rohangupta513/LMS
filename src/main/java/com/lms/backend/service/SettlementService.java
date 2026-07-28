@@ -49,12 +49,6 @@ public class SettlementService {
 
     LocalDate dateOfCredit = request.getDateOfCredit() != null ? request.getDateOfCredit() : LocalDate.now();
 
-    if (account.getStatus() == LoanStatus.PENDING_CANCELLATION) {
-      long daysSinceStart = java.time.temporal.ChronoUnit.DAYS.between(account.getStartDate(), dateOfCredit);
-      if (daysSinceStart > 5) {
-        throw new RuntimeException("Cancellation payment rejected: The payment date is beyond the strict 5-day window from loan start date.");
-      }
-    }
 
     // Automatically calculate and apply any pending penalties up to the date of credit
     // before we take their money and distribute it!
@@ -105,9 +99,44 @@ public class SettlementService {
             .status("PENDING")
             .build();
 
+        credit.setStatus("PENDING_LENDER_VERIFICATION");
     credit = loanCreditRepository.save(credit);
+    return credit;
+  }
 
-    double remainingAmount = request.getAmount();
+  /**
+   * Verifies and confirms a processed credit.
+   * Changes the status of the LoanCredit from PENDING_LENDER_VERIFICATION to SUCCESS.
+   * Typically called by a lender or an external verification service.
+   *
+   * @param credId The Long ID of the LoanCredit to be verified.
+   * @return The updated LoanCredit entity.
+   */
+  @Transactional
+  public LoanCredit verifyCredit(Long credId) {
+    log.info("Verifying credit ID: {}", credId);
+    LoanCredit credit =
+        loanCreditRepository
+            .findById(credId)
+            .orElseThrow(() -> new RuntimeException("Credit request not found"));
+
+    if (!"PENDING_LENDER_VERIFICATION".equals(credit.getStatus())) {
+      throw new RuntimeException("Credit is already verified or in invalid state.");
+    }
+
+        LoanAccount account = credit.getLoanAccount();
+    java.time.LocalDate dateOfCredit = credit.getDateOfCredit();
+
+    java.util.List<RepaymentScheduler> dues =
+        repaymentSchedulerRepository.findByLoanAccount_LanAndStatusOrderByDueDateAsc(
+            account.getLan(), RepaymentStatus.PENDING);
+
+    LanCharge lanCharge = lanChargeRepository.findById(account.getLan()).orElse(null);
+    double globalPenalCharges = lanCharge != null ? lanCharge.getPenalCharges() : 0.0;
+    double globalOtherFees = lanCharge != null ? lanCharge.getOtherFees() : 0.0;
+    double globalChargesDue = globalPenalCharges + globalOtherFees;
+
+double remainingAmount = credit.getAmtCredited();
 
     double totalPrinDerived = 0;
     double totalIntDerived = 0;
@@ -226,7 +255,7 @@ public class SettlementService {
               .chargesDerived(round(cSettled))
               .dateOfCredit(dateOfCredit)
               .isSettled(due.getStatus() == RepaymentStatus.PAID)
-              .status("PENDING")
+              .status("SUCCESS")
               .build();
       settlementAuditRepository.save(audit);
 
@@ -275,46 +304,13 @@ public class SettlementService {
     credit.setTotalPrincipleDerived(totalPrinDerived);
     credit.setTotalInterestDerived(totalIntDerived);
     credit.setTotalChargesDerived(totalCharDerived);
-    credit.setStatus("PENDING_LENDER_VERIFICATION");
+    credit.setStatus("SUCCESS");
 
     loanCreditRepository.save(credit);
 
+    
     updateLoanAccountDue(account.getLan());
     return credit;
-  }
-
-  /**
-   * Verifies and confirms a processed credit.
-   * Changes the status of the LoanCredit from PENDING_LENDER_VERIFICATION to SUCCESS.
-   * Typically called by a lender or an external verification service.
-   *
-   * @param credId The Long ID of the LoanCredit to be verified.
-   * @return The updated LoanCredit entity.
-   */
-  public LoanCredit verifyCredit(Long credId) {
-    log.info("Verifying credit ID: {}", credId);
-    LoanCredit credit =
-        loanCreditRepository
-            .findById(credId)
-            .orElseThrow(() -> new RuntimeException("Credit request not found"));
-
-    if (!"PENDING_LENDER_VERIFICATION".equals(credit.getStatus())) {
-      throw new RuntimeException("Credit is already verified or in invalid state.");
-    }
-
-    credit.setStatus("SUCCESS");
-    LoanCredit verifiedCredit = loanCreditRepository.save(credit);
-
-    // Update related settlement audits
-    java.util.List<SettlementAudit> audits = settlementAuditRepository.findByLoanCredit_CredId(credId);
-    for (SettlementAudit audit : audits) {
-      audit.setStatus("SUCCESS");
-    }
-    settlementAuditRepository.saveAll(audits);
-
-    updateLoanAccountDue(verifiedCredit.getLoanAccount().getLan());
-
-    return verifiedCredit;
   }
 
   /**
@@ -339,7 +335,9 @@ public class SettlementService {
 
         LoanAccount account = loanAccountRepository.findById(lan).orElse(null);
         if (account != null) {
-          account.setStatus(LoanStatus.CLOSED);
+          if (account.getStatus() != LoanStatus.PENDING_CANCELLATION && account.getStatus() != LoanStatus.PENDING_FORECLOSURE) {
+            account.setStatus(LoanStatus.CLOSED);
+          }
           loanAccountRepository.save(account);
         }
       } else {

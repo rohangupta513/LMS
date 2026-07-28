@@ -1,8 +1,13 @@
 package com.lms.backend.controller;
 
 import com.lms.backend.dto.CreditRequest;
-import com.lms.backend.entity.LoanCredit;
+import com.lms.backend.dto.ErrorResponse;
+import com.lms.backend.dto.LoanCreditResponse;
+import com.lms.backend.dto.RepaymentSchedulerResponse;
+import com.lms.backend.dto.SettlementAuditResponse;
 import com.lms.backend.service.SettlementService;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,56 +25,56 @@ public class SettlementController {
 
   @Autowired private SettlementService settlementService;
 
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ErrorResponse> handleException(Exception e) {
+    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
+  }
+
   @PostMapping("/credit")
-  public ResponseEntity<?> processCredit(@RequestBody CreditRequest request) {
+  public ResponseEntity<LoanCreditResponse> processCredit(@RequestBody CreditRequest request) {
     log.info("Received credit payment request for LAN: {}", request.getLan());
-    try {
-      return ResponseEntity.ok(settlementService.processCredit(request));
-    } catch (RuntimeException e) {
-      log.error("Failed to process credit for LAN {}: {}", request.getLan(), e.getMessage());
-      return ResponseEntity.badRequest().body(e.getMessage());
-    }
+    return ResponseEntity.ok(LoanCreditResponse.fromEntity(settlementService.processCredit(request)));
   }
 
   @PutMapping("/credit/{credId}/verify")
-  public ResponseEntity<LoanCredit> verifyCredit(@PathVariable Long credId) {
+  public ResponseEntity<LoanCreditResponse> verifyCredit(@PathVariable Long credId) {
     log.info("Verifying credit ID: {}", credId);
-    return ResponseEntity.ok(settlementService.verifyCredit(credId));
+    return ResponseEntity.ok(LoanCreditResponse.fromEntity(settlementService.verifyCredit(credId)));
   }
 
   @GetMapping("/schedules")
-  public ResponseEntity<java.util.List<com.lms.backend.entity.RepaymentScheduler>> getAllSchedules() {
+  public ResponseEntity<List<RepaymentSchedulerResponse>> getAllSchedules() {
     log.info("Fetching all repayment schedules");
-    return ResponseEntity.ok(settlementService.getAllSchedules());
+    return ResponseEntity.ok(settlementService.getAllSchedules().stream().map(RepaymentSchedulerResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @GetMapping("/schedules/{lan}")
-  public ResponseEntity<java.util.List<com.lms.backend.entity.RepaymentScheduler>> getSchedulesByLan(@PathVariable Long lan) {
+  public ResponseEntity<List<RepaymentSchedulerResponse>> getSchedulesByLan(@PathVariable Long lan) {
     log.info("Fetching repayment schedules for LAN: {}", lan);
-    return ResponseEntity.ok(settlementService.getSchedulesByLan(lan));
+    return ResponseEntity.ok(settlementService.getSchedulesByLan(lan).stream().map(RepaymentSchedulerResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @GetMapping("/credits")
-  public ResponseEntity<java.util.List<LoanCredit>> getAllCredits() {
+  public ResponseEntity<List<LoanCreditResponse>> getAllCredits() {
     log.info("Fetching all loan credits");
-    return ResponseEntity.ok(settlementService.getAllCredits());
+    return ResponseEntity.ok(settlementService.getAllCredits().stream().map(LoanCreditResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @GetMapping("/credits/{lan}")
-  public ResponseEntity<java.util.List<LoanCredit>> getCreditsByLan(@PathVariable Long lan) {
+  public ResponseEntity<List<LoanCreditResponse>> getCreditsByLan(@PathVariable Long lan) {
     log.info("Fetching loan credits for LAN: {}", lan);
-    return ResponseEntity.ok(settlementService.getCreditsByLan(lan));
+    return ResponseEntity.ok(settlementService.getCreditsByLan(lan).stream().map(LoanCreditResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @GetMapping("/audits")
-  public ResponseEntity<java.util.List<com.lms.backend.entity.SettlementAudit>> getAllAudits() {
+  public ResponseEntity<List<SettlementAuditResponse>> getAllAudits() {
     log.info("Fetching all settlement audits");
-    return ResponseEntity.ok(settlementService.getAllAudits());
+    return ResponseEntity.ok(settlementService.getAllAudits().stream().map(SettlementAuditResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @GetMapping("/audits/{lan}")
-  public ResponseEntity<java.util.List<com.lms.backend.entity.SettlementAudit>> getAuditsByLan(@PathVariable Long lan) {
+  public ResponseEntity<List<SettlementAuditResponse>> getAuditsByLan(@PathVariable Long lan) {
     log.info("Fetching settlement audits for LAN: {}", lan);
-    return ResponseEntity.ok(settlementService.getAuditsByLan(lan));
+    return ResponseEntity.ok(settlementService.getAuditsByLan(lan).stream().map(SettlementAuditResponse::fromEntity).collect(Collectors.toList()));
   }
 }

@@ -1,12 +1,16 @@
 package com.lms.backend.controller;
 
 import com.lms.backend.dto.ApplyRequest;
+import com.lms.backend.dto.ErrorResponse;
 import com.lms.backend.dto.InquireRequest;
-import com.lms.backend.entity.Loan;
-import com.lms.backend.entity.LoanAccount;
+import com.lms.backend.dto.LanChargeResponse;
+import com.lms.backend.dto.LoanAccountDueResponse;
+import com.lms.backend.dto.LoanAccountResponse;
+import com.lms.backend.dto.LoanResponse;
 import com.lms.backend.enums.LoanStatus;
 import com.lms.backend.service.LoanApplicationService;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,104 +20,85 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/api/lms")
-/**
- * REST Controller handling incoming HTTP requests for LoanApplicationController entities.
- * Exposes endpoints for CRUD operations and business logic flows.
- */
 public class LoanApplicationController {
 
   @Autowired private LoanApplicationService loanApplicationService;
 
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ErrorResponse> handleException(Exception e) {
+    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
+  }
+
   @PostMapping("/inquire")
-  public ResponseEntity<List<Loan>> inquire(@RequestBody InquireRequest request) {
+  public ResponseEntity<List<LoanResponse>> inquire(@RequestBody InquireRequest request) {
     log.info("Received loan inquiry request: {}", request);
-    return ResponseEntity.ok(loanApplicationService.inquire(request));
+    return ResponseEntity.ok(loanApplicationService.inquire(request).stream().map(LoanResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @PostMapping("/apply")
-  public ResponseEntity<?> apply(@RequestBody ApplyRequest request) {
+  public ResponseEntity<LoanAccountResponse> apply(@RequestBody ApplyRequest request) {
     log.info("Received loan application request for user: {}", request.getUserId());
-    try {
-      return ResponseEntity.ok(loanApplicationService.apply(request));
-    } catch (RuntimeException e) {
-      log.error("Failed to apply for loan: {}", e.getMessage());
-      return ResponseEntity.badRequest().body(e.getMessage());
-    }
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.apply(request)));
   }
 
   @PutMapping("/{lan}/verify")
-  public ResponseEntity<LoanAccount> verifyStatus(
+  public ResponseEntity<LoanAccountResponse> verifyStatus(
       @PathVariable Long lan, @RequestParam LoanStatus status) {
     log.info("Verifying status for LAN {}: {}", lan, status);
-    return ResponseEntity.ok(loanApplicationService.verifyStatus(lan, status));
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.verifyStatus(lan, status)));
   }
 
   @PostMapping("/{lan}/cancel")
-  public ResponseEntity<?> cancelLoan(
+  public ResponseEntity<LoanAccountResponse> cancelLoan(
       @PathVariable Long lan, 
       @RequestParam(required = false) java.time.LocalDate dateOfCancellation) {
     log.info("Received request to cancel loan LAN {}", lan);
     if (dateOfCancellation == null) {
       dateOfCancellation = java.time.LocalDate.now();
     }
-    try {
-      return ResponseEntity.ok(loanApplicationService.cancelLoan(lan, dateOfCancellation));
-    } catch (RuntimeException e) {
-      log.error("Failed to cancel loan LAN {}: {}", lan, e.getMessage());
-      return ResponseEntity.badRequest().body(e.getMessage());
-    }
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.cancelLoan(lan, dateOfCancellation)));
   }
 
   @PutMapping("/{lan}/verify-cancellation")
-  public ResponseEntity<?> verifyCancellation(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountResponse> verifyCancellation(@PathVariable Long lan) {
     log.info("Received request to verify cancellation for LAN: {}", lan);
-    try {
-      return ResponseEntity.ok(loanApplicationService.verifyCancellation(lan));
-    } catch (RuntimeException e) {
-      log.error("Failed to verify cancellation for LAN {}: {}", lan, e.getMessage());
-      return ResponseEntity.badRequest().body(e.getMessage());
-    }
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.verifyCancellation(lan)));
   }
 
   @PutMapping("/{lan}/verify-foreclosure")
-  public ResponseEntity<?> verifyForeclosure(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountResponse> verifyForeclosure(@PathVariable Long lan) {
     log.info("Received request to verify foreclosure for LAN: {}", lan);
-    try {
-      return ResponseEntity.ok(loanApplicationService.verifyForeclosure(lan));
-    } catch (RuntimeException e) {
-      log.error("Failed to verify foreclosure for LAN {}: {}", lan, e.getMessage());
-      return ResponseEntity.badRequest().body(e.getMessage());
-    }
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.verifyForeclosure(lan)));
   }
 
   @PostMapping("/{lan}/foreclose")
-  public ResponseEntity<LoanAccount> forecloseLoan(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountResponse> forecloseLoan(@PathVariable Long lan) {
     log.info("Received request to foreclose loan for LAN: {}", lan);
-    return ResponseEntity.ok(loanApplicationService.forecloseLoan(lan));
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.forecloseLoan(lan)));
   }
 
   @GetMapping("/accounts")
-  public ResponseEntity<List<LoanAccount>> getAllLoanAccounts() {
+  public ResponseEntity<List<LoanAccountResponse>> getAllLoanAccounts() {
     log.info("Fetching all loan accounts");
-    return ResponseEntity.ok(loanApplicationService.getAllLoanAccounts());
+    return ResponseEntity.ok(loanApplicationService.getAllLoanAccounts().stream().map(LoanAccountResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @GetMapping("/accounts/{lan}/details")
-  public ResponseEntity<LoanAccount> getLoanAccount(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountResponse> getLoanAccount(@PathVariable Long lan) {
     log.info("Fetching details for loan account LAN: {}", lan);
-    return ResponseEntity.ok(loanApplicationService.getLoanAccount(lan));
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.getLoanAccount(lan)));
   }
 
   @GetMapping("/accounts/{lan}/dues")
-  public ResponseEntity<com.lms.backend.entity.LoanAccountDue> getLoanAccountDue(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountDueResponse> getLoanAccountDue(@PathVariable Long lan) {
     log.info("Fetching due ledger for loan account LAN: {}", lan);
-    return ResponseEntity.ok(loanApplicationService.getLoanAccountDue(lan));
+    return ResponseEntity.ok(LoanAccountDueResponse.fromEntity(loanApplicationService.getLoanAccountDue(lan)));
   }
 
   @PostMapping("/accounts/{lan}/calculate-dpd")
-  public ResponseEntity<LoanAccount> calculateDpdAndPenalties(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountResponse> calculateDpdAndPenalties(@PathVariable Long lan) {
     log.info("Triggering explicit DPD and penalty calculation for LAN: {}", lan);
-    return ResponseEntity.ok(loanApplicationService.calculateDpdAndPenalties(lan, java.time.LocalDate.now()));
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.calculateDpdAndPenalties(lan, java.time.LocalDate.now())));
   }
 
   @GetMapping("/accounts/{lan}/next-due-status")
@@ -125,19 +110,20 @@ public class LoanApplicationController {
   }
 
   @PutMapping("/accounts/{lan}/activate")
-  public ResponseEntity<LoanAccount> activateAccount(@PathVariable Long lan) {
+  public ResponseEntity<LoanAccountResponse> activateAccount(@PathVariable Long lan) {
     log.info("Received request to activate pending cancelled/foreclosed account for LAN: {}", lan);
-    try {
-      return ResponseEntity.ok(loanApplicationService.activateAccount(lan));
-    } catch (RuntimeException e) {
-      log.error("Failed to activate account for LAN {}: {}", lan, e.getMessage());
-      return ResponseEntity.badRequest().body(null);
-    }
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.activateAccount(lan)));
   }
 
   @GetMapping("/accounts/{lan}/charges")
-  public ResponseEntity<com.lms.backend.entity.LanCharge> getLanCharge(@PathVariable Long lan) {
+  public ResponseEntity<LanChargeResponse> getLanCharge(@PathVariable Long lan) {
     log.info("Fetching LanCharge details for LAN: {}", lan);
-    return ResponseEntity.ok(loanApplicationService.getLanCharge(lan));
+    return ResponseEntity.ok(LanChargeResponse.fromEntity(loanApplicationService.getLanCharge(lan)));
+  }
+
+  @DeleteMapping("/accounts/{lan}")
+  public ResponseEntity<LoanAccountResponse> deleteLoanAccount(@PathVariable Long lan) {
+    log.info("Received request to delete loan account LAN: {}", lan);
+    return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.deleteLoanAccount(lan)));
   }
 }
