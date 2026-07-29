@@ -30,12 +30,6 @@ public class LoanApplicationService {
   @Autowired private LanChargeRepository lanChargeRepository;
   @Autowired private SettlementAuditRepository settlementAuditRepository;
 
-  /**
-   * Retrieves a list of available loans based on the user's requested criteria.
-   *
-   * @param request The inquiry request containing desired amount, interest rate, time period, and loan type.
-   * @return A list of loans that match the specified criteria.
-   */
   public List<Loan> inquire(InquireRequest request) {
     log.info("Inquiring loans for amount: {} and type: {}", request.getAmount(), request.getTypeOfLoan());
     return loanRepository.findByCriteria(
@@ -45,13 +39,7 @@ public class LoanApplicationService {
         request.getTypeOfLoan());
   }
 
-  /**
-   * Applies for a loan by creating a new LoanAccount in PENDING status.
-   *
-   * @param request The application request containing user ID, lender ID, loan ID, and terms.
-   * @return The newly created LoanAccount entity.
-   * @throws RuntimeException if the user, lender, or loan product is not found.
-   */
+
   public LoanAccount apply(ApplyRequest request) {
     log.info("Processing loan application for user ID: {}", request.getUserId());
     User user =
@@ -104,14 +92,7 @@ public class LoanApplicationService {
     return loanAccountRepository.save(account);
   }
 
-  /**
-   * Updates the status of a loan account (e.g., when a lender verifies and approves the loan).
-   * If the status changes to ACTIVE, the repayment schedule is automatically generated.
-   *
-   * @param lan    The Loan Account Number (Long).
-   * @param status The status to set.
-   * @return The updated LoanAccount.
-   */
+
   @Transactional
   public LoanAccount verifyStatus(Long lan, LoanStatus status) {
     LoanAccount account =
@@ -128,13 +109,6 @@ public class LoanApplicationService {
     return account;
   }
 
-  /**
-   * Generates the repayment schedule for an approved loan based on simple interest.
-   * Creates a schedule entry for each period (months for personal, days for merchant)
-   * and initializes the LoanAccountDue record.
-   *
-   * @param account The approved LoanAccount for which to generate the schedule.
-   */
   private void generateRepaymentSchedule(LoanAccount account) {
     double principal = account.getAmount();
     double rate = account.getRateOfInterest();
@@ -193,43 +167,21 @@ public class LoanApplicationService {
     loanAccountDueRepository.save(due);
   }
 
-  /**
-   * Retrieves the details of a specific Loan Account by its LAN.
-   *
-   * @param lan The Loan Account Number (Long).
-   * @return The LoanAccount entity.
-   */
+
   public LoanAccount getLoanAccount(Long lan) {
     return loanAccountRepository.findById(lan)
         .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
   }
 
-  /**
-   * Retrieves the master ledger (dues) for a specific Loan Account.
-   * @param lan The Loan Account Number (Long).
-   * @return The LoanAccountDue entity containing outstanding balances.
-   */
   public LoanAccountDue getLoanAccountDue(Long lan) {
     return loanAccountDueRepository.findById(lan)
         .orElseThrow(() -> new ResourceNotFoundException("Loan Account Due not found"));
   }
 
-  /**
-   * Retrieves a list of all active loan accounts in the system.
-   * @return A list of LoanAccount entities.
-   */
   public List<LoanAccount> getAllLoanAccounts() {
     return loanAccountRepository.findAll();
   }
 
-  /**
-   * Calculates Days Past Due (DPD) and applies penal charges to overdue schedules.
-   * This is typically invoked by a scheduled cron job or before a payment is processed.
-   *
-   * @param lan          The Loan Account Number (Long).
-   * @param relativeDate The date to calculate penalties against (useful for backdated payments).
-   * @return The updated LoanAccount entity.
-   */
   public LoanAccount calculateDpdAndPenalties(Long lan, LocalDate relativeDate) {
     LoanAccount account = loanAccountRepository.findById(lan)
         .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
@@ -319,14 +271,6 @@ public class LoanApplicationService {
     return Math.round(value * 100.0) / 100.0;
   }
 
-
-
-  /**
-   * Fetches the next due status, actively calculating DPD and penalties first.
-   *
-   * @param lan The Loan Account Number (Long).
-   * @return A map containing the breakup of the next due.
-   */
   public java.util.Map<String, Object> getNextDueStatus(Long lan, LocalDate dateOfCredit) {
     LocalDate calcDate = dateOfCredit != null ? dateOfCredit : LocalDate.now();
     LoanAccount account = loanAccountRepository.findById(lan)
