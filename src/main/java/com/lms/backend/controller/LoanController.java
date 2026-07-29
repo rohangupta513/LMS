@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/loans")
@@ -19,13 +20,9 @@ import org.springframework.web.bind.annotation.*;
 public class LoanController {
   @Autowired private LoanService service;
 
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponse> handleException(Exception e) {
-    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
-  }
 
   @PostMapping
-  public ResponseEntity<LoanResponse> add(@RequestBody Loan l) {
+  public ResponseEntity<LoanResponse> add(@Valid @RequestBody Loan l) {
     return ResponseEntity.ok(LoanResponse.fromEntity(service.add(l)));
   }
 
@@ -40,19 +37,19 @@ public class LoanController {
   }
 
   @PutMapping("/{id}")
-  public ResponseEntity<LoanResponse> update(@PathVariable Long id, @RequestBody Loan l) {
+  public ResponseEntity<LoanResponse> update(@PathVariable Long id, @Valid @RequestBody Loan l) {
     return service
         .get(id)
         .map(
             existing -> {
-              existing.setLenderId(l.getLenderId());
-              existing.setLoanAmountMin(l.getLoanAmountMin());
-              existing.setLoanAmountMax(l.getLoanAmountMax());
-              existing.setLoanInterestMin(l.getLoanInterestMin());
-              existing.setLoanInterestMax(l.getLoanInterestMax());
-              existing.setLoanTimeMin(l.getLoanTimeMin());
-              existing.setLoanTimeMax(l.getLoanTimeMax());
-              existing.setTypeOfLoan(l.getTypeOfLoan());
+              if (l.getLenderId() != null) existing.setLenderId(l.getLenderId());
+              if (l.getLoanAmountMin() != null) existing.setLoanAmountMin(l.getLoanAmountMin());
+              if (l.getLoanAmountMax() != null) existing.setLoanAmountMax(l.getLoanAmountMax());
+              if (l.getLoanInterestMin() != null) existing.setLoanInterestMin(l.getLoanInterestMin());
+              if (l.getLoanInterestMax() != null) existing.setLoanInterestMax(l.getLoanInterestMax());
+              if (l.getLoanTimeMin() != null) existing.setLoanTimeMin(l.getLoanTimeMin());
+              if (l.getLoanTimeMax() != null) existing.setLoanTimeMax(l.getLoanTimeMax());
+              if (l.getTypeOfLoan() != null) existing.setTypeOfLoan(l.getTypeOfLoan());
               return ResponseEntity.ok(LoanResponse.fromEntity(service.add(existing)));
             })
         .orElse(ResponseEntity.notFound().build());

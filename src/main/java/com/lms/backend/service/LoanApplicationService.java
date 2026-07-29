@@ -3,6 +3,7 @@ package com.lms.backend.service;
 import com.lms.backend.dto.ApplyRequest;
 import com.lms.backend.dto.InquireRequest;
 import com.lms.backend.entity.*;
+import com.lms.backend.exception.ResourceNotFoundException;
 import com.lms.backend.enums.LoanStatus;
 import com.lms.backend.enums.LoanType;
 import com.lms.backend.enums.RepaymentStatus;
@@ -61,15 +62,15 @@ public class LoanApplicationService {
     User user =
         userRepository
             .findById(request.getUserId())
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     Lender lender =
         lenderRepository
             .findById(request.getLenderId())
-            .orElseThrow(() -> new RuntimeException("Lender not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Lender not found"));
     Loan loan =
         loanRepository
             .findById(request.getLoanId())
-            .orElseThrow(() -> new RuntimeException("Loan not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
 
     if (request.getAmount() < loan.getLoanAmountMin() || request.getAmount() > loan.getLoanAmountMax()) {
       throw new RuntimeException(String.format("Loan amount (%.2f) must be between %.2f and %.2f.",
@@ -121,7 +122,7 @@ public class LoanApplicationService {
     LoanAccount account =
         loanAccountRepository
             .findById(lan)
-            .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
     account.setStatus(status);
     loanAccountRepository.save(account);
 
@@ -197,8 +198,6 @@ public class LoanApplicationService {
     loanAccountDueRepository.save(due);
   }
 
-
-
   /**
    * Retrieves the details of a specific Loan Account by its LAN.
    *
@@ -207,7 +206,7 @@ public class LoanApplicationService {
    */
   public LoanAccount getLoanAccount(Long lan) {
     return loanAccountRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
   }
 
   /**
@@ -218,7 +217,7 @@ public class LoanApplicationService {
    */
   public LoanAccountDue getLoanAccountDue(Long lan) {
     return loanAccountDueRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account Due not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account Due not found"));
   }
 
   /**
@@ -240,7 +239,7 @@ public class LoanApplicationService {
    */
   public LoanAccount calculateDpdAndPenalties(Long lan, LocalDate relativeDate) {
     LoanAccount account = loanAccountRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
 
     if (account.getStatus() != LoanStatus.ACTIVE) {
       return account; // Only calculate penalties for active ACTIVE loans
@@ -338,7 +337,7 @@ public class LoanApplicationService {
   public java.util.Map<String, Object> getNextDueStatus(Long lan, LocalDate dateOfCredit) {
     LocalDate calcDate = dateOfCredit != null ? dateOfCredit : LocalDate.now();
     LoanAccount account = loanAccountRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
 
     if (account.getStatus() != LoanStatus.PENDING_CANCELLATION && account.getStatus() != LoanStatus.PENDING_FORECLOSURE) {
       calculateDpdAndPenalties(lan, calcDate);
@@ -417,6 +416,4 @@ public class LoanApplicationService {
   public LanCharge getLanCharge(Long lan) {
     return lanChargeRepository.findById(lan).orElse(null);
   }
-
-
 }

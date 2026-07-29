@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -19,13 +20,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
   @Autowired private UserService service;
 
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponse> handleException(Exception e) {
-    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
-  }
 
   @PostMapping
-  public ResponseEntity<UserResponse> add(@RequestBody User u) {
+  public ResponseEntity<UserResponse> add(@Valid @RequestBody User u) {
     return ResponseEntity.ok(UserResponse.fromEntity(service.add(u)));
   }
 
@@ -45,10 +42,10 @@ public class UserController {
         .get(id)
         .map(
             existing -> {
-              existing.setUserName(u.getUserName());
-              existing.setUserAddress(u.getUserAddress());
-              existing.setUserPhone(u.getUserPhone());
-              existing.setUserKycDetails(u.getUserKycDetails());
+              if (u.getUserName() != null) existing.setUserName(u.getUserName());
+              if (u.getUserAddress() != null) existing.setUserAddress(u.getUserAddress());
+              if (u.getUserPhone() != null) existing.setUserPhone(u.getUserPhone());
+              if (u.getUserKycDetails() != null) existing.setUserKycDetails(u.getUserKycDetails());
               return ResponseEntity.ok(UserResponse.fromEntity(service.add(existing)));
             })
         .orElse(ResponseEntity.notFound().build());

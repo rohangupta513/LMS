@@ -6,6 +6,7 @@ import com.lms.backend.entity.LoanAccountDue;
 import com.lms.backend.entity.RepaymentScheduler;
 import com.lms.backend.enums.LoanStatus;
 import com.lms.backend.enums.RepaymentStatus;
+import com.lms.backend.exception.ResourceNotFoundException;
 import com.lms.backend.repository.LanChargeRepository;
 import com.lms.backend.repository.LoanAccountDueRepository;
 import com.lms.backend.repository.LoanAccountRepository;
@@ -15,9 +16,11 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CancellationService {
@@ -35,9 +38,12 @@ public class CancellationService {
   @Transactional
   public LoanAccount cancelLoan(Long lan, LocalDate dateOfCancellation) {
     LoanAccount account = loanAccountRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
+
+    log.info("Initiating cancellation for LAN: {}. Current status: {}", lan, account.getStatus());
 
     if (account.getStatus() != LoanStatus.ACTIVE) {
+      log.error("Cancellation failed for LAN: {}. Account is not ACTIVE.", lan);
       throw new RuntimeException("Only active loans can be cancelled.");
     }
 
@@ -47,7 +53,7 @@ public class CancellationService {
       throw new RuntimeException("Cancellation rejected: A loan can only be cancelled within 5 days of its start date.");
     }
 
-    account.setStatus(LoanStatus.PENDING_CANCELLATION);
+    account.setStatus(LoanStatus.PENDING_CANCELLATION) ;
 
     // Halt scheduled dues
     List<RepaymentScheduler> dues =
@@ -74,7 +80,7 @@ public class CancellationService {
     LoanAccountDue due =
         loanAccountDueRepository
             .findById(lan)
-            .orElseThrow(() -> new RuntimeException("Loan Account Due not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Loan Account Due not found"));
 
     due.setTotalOutstandingAmount(round(account.getAmount() + 500.0)); // Principal + Fee
     due.setTotalOutstandingPrinciple(account.getAmount());
@@ -87,21 +93,25 @@ public class CancellationService {
     due.setNextDueCharges(500.0);
 
     loanAccountDueRepository.save(due);
+    log.info("Successfully applied cancellation charges and marked LAN: {} as PENDING_CANCELLATION", lan);
     return loanAccountRepository.save(account);
   }
 
   @Transactional
   public LoanAccount verifyCancellation(Long lan) {
     LoanAccount account = loanAccountRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
+
+    log.info("Verifying cancellation for LAN: {}. Current status: {}", lan, account.getStatus());
 
     if (account.getStatus() != LoanStatus.PENDING_CANCELLATION) {
+      log.error("Cancellation verification failed for LAN: {}. Account is not PENDING_CANCELLATION.", lan);
       throw new RuntimeException("Account is not pending cancellation.");
     }
 
     LoanAccountDue ledger = loanAccountDueRepository.findById(lan).orElseThrow();
 
-    if (ledger.getTotalOutstandingAmount() > 0) {
+    if (ledger.getTotalOutstandingAmount() > 0 || ledger.getTotalChargesDue() > 0) {
       throw new RuntimeException("Cannot verify cancellation. Dues are not fully settled.");
     }
 
@@ -116,6 +126,7 @@ public class CancellationService {
     ledger.setIsSettled(true);
     loanAccountDueRepository.save(ledger);
 
+    log.info("Successfully verified cancellation for LAN: {}. Account is now CANCELLED.", lan);
     return loanAccountRepository.save(account);
   }
 }

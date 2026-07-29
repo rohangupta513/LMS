@@ -2,6 +2,7 @@ package com.lms.backend.service;
 
 import com.lms.backend.entity.Loan;
 import com.lms.backend.repository.LoanRepository;
+import com.lms.backend.exception.ResourceNotFoundException;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +30,7 @@ public class LoanService {
       existing.setLoanTimeMax(u.getLoanTimeMax());
       existing.setTypeOfLoan(u.getTypeOfLoan());
       return repo.save(existing);
-    }).orElseThrow(() -> new RuntimeException("Loan not found"));
+    }).orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
   }
 
   public List<Loan> getAll() {

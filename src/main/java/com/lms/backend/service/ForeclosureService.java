@@ -6,6 +6,7 @@ import com.lms.backend.entity.LoanAccountDue;
 import com.lms.backend.entity.RepaymentScheduler;
 import com.lms.backend.enums.LoanStatus;
 import com.lms.backend.enums.RepaymentStatus;
+import com.lms.backend.exception.ResourceNotFoundException;
 import com.lms.backend.repository.LanChargeRepository;
 import com.lms.backend.repository.LoanAccountDueRepository;
 import com.lms.backend.repository.LoanAccountRepository;
@@ -13,9 +14,11 @@ import com.lms.backend.repository.RepaymentSchedulerRepository;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ForeclosureService {
@@ -34,9 +37,12 @@ public class ForeclosureService {
     LoanAccount account =
         loanAccountRepository
             .findById(lan)
-            .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
+
+    log.info("Initiating foreclosure for LAN: {}. Current status: {}", lan, account.getStatus());
 
     if (account.getStatus() != LoanStatus.ACTIVE) {
+      log.error("Foreclosure failed for LAN: {}. Account is not ACTIVE.", lan);
       throw new RuntimeException("Foreclosure can only be applied to Active loan accounts.");
     }
 
@@ -100,6 +106,7 @@ public class ForeclosureService {
       loanAccountDueRepository.save(due);
     }
 
+    log.info("Successfully applied foreclosure charges and marked LAN: {} as PENDING_FORECLOSURE", lan);
     return account;
   }
 
@@ -108,9 +115,12 @@ public class ForeclosureService {
     LoanAccount account =
         loanAccountRepository
             .findById(lan)
-            .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
+
+    log.info("Verifying foreclosure for LAN: {}. Current status: {}", lan, account.getStatus());
 
     if (account.getStatus() != LoanStatus.PENDING_FORECLOSURE) {
+      log.error("Foreclosure verification failed for LAN: {}. Account is not PENDING_FORECLOSURE.", lan);
       throw new RuntimeException("Loan is not in PENDING_FORECLOSURE status.");
     }
 
@@ -123,6 +133,7 @@ public class ForeclosureService {
     ledger.setIsForeclosed(true);
     loanAccountDueRepository.save(ledger);
 
+    log.info("Successfully verified foreclosure for LAN: {}. Account is now FORECLOSED.", lan);
     return loanAccountRepository.save(account);
   }
 }

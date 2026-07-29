@@ -4,6 +4,7 @@ import com.lms.backend.dto.CreditRequest;
 import com.lms.backend.entity.*;
 import com.lms.backend.enums.LoanStatus;
 import com.lms.backend.enums.RepaymentStatus;
+import com.lms.backend.exception.ResourceNotFoundException;
 import com.lms.backend.repository.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -45,7 +46,7 @@ public class SettlementService {
     LoanAccount account =
         loanAccountRepository
             .findById(request.getLan())
-            .orElseThrow(() -> new RuntimeException("Loan account not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Loan account not found"));
 
     LocalDate dateOfCredit = request.getDateOfCredit() != null ? request.getDateOfCredit() : LocalDate.now();
 
@@ -118,7 +119,7 @@ public class SettlementService {
     LoanCredit credit =
         loanCreditRepository
             .findById(credId)
-            .orElseThrow(() -> new RuntimeException("Credit request not found"));
+            .orElseThrow(() -> new ResourceNotFoundException("Credit request not found"));
 
     if (!"PENDING_LENDER_VERIFICATION".equals(credit.getStatus())) {
       throw new RuntimeException("Credit is already verified or in invalid state.");
@@ -327,11 +328,15 @@ double remainingAmount = credit.getAmtCredited();
 
     LoanAccountDue due = loanAccountDueRepository.findById(lan).orElse(null);
     if (due != null) {
-      if (remainingDues.isEmpty()) {
+      LanCharge lanCharge = lanChargeRepository.findById(lan).orElse(null);
+      double globalCharges = lanCharge != null ? (lanCharge.getPenalCharges() + lanCharge.getOtherFees()) : 0.0;
+
+      if (remainingDues.isEmpty() && globalCharges <= 0) {
         due.setIsSettled(true);
         due.setTotalOutstandingAmount(0.0);
         due.setTotalOutstandingPrinciple(0.0);
         due.setTotalOutstandingInterest(0.0);
+        due.setTotalChargesDue(0.0);
 
         LoanAccount account = loanAccountRepository.findById(lan).orElse(null);
         if (account != null) {
@@ -341,26 +346,32 @@ double remainingAmount = credit.getAmtCredited();
           loanAccountRepository.save(account);
         }
       } else {
-        LanCharge lanCharge = lanChargeRepository.findById(lan).orElse(null);
-        double globalCharges = lanCharge != null ? (lanCharge.getPenalCharges() + lanCharge.getOtherFees()) : 0.0;
-
-        RepaymentScheduler nextDue = remainingDues.get(0);
-        due.setNextDueDate(nextDue.getDueDate());
-        due.setNextDueAmount(round(nextDue.getTotalDue() + globalCharges));
-        due.setNextDuePrinciple(round(nextDue.getTotalPrincipalDue()));
-        due.setNetDueInterest(round(nextDue.getTotalInterestDue()));
-        due.setNextDueCharges(round(globalCharges));
-
         double totalOutAmt = 0, totalOutP = 0, totalOutI = 0;
         for (RepaymentScheduler r : remainingDues) {
           totalOutAmt += r.getTotalDue();
           totalOutP += r.getTotalPrincipalDue();
           totalOutI += r.getTotalInterestDue();
         }
+
+        if (!remainingDues.isEmpty()) {
+          RepaymentScheduler nextDue = remainingDues.get(0);
+          due.setNextDueDate(nextDue.getDueDate());
+          due.setNextDueAmount(round(nextDue.getTotalDue() + globalCharges));
+          due.setNextDuePrinciple(round(nextDue.getTotalPrincipalDue()));
+          due.setNetDueInterest(round(nextDue.getTotalInterestDue()));
+        } else {
+          due.setNextDueDate(LocalDate.now());
+          due.setNextDueAmount(round(globalCharges));
+          due.setNextDuePrinciple(0.0);
+          due.setNetDueInterest(0.0);
+        }
+        due.setNextDueCharges(round(globalCharges));
+
         due.setTotalOutstandingAmount(round(totalOutAmt + globalCharges));
         due.setTotalOutstandingPrinciple(round(totalOutP));
         due.setTotalOutstandingInterest(round(totalOutI));
         due.setTotalChargesDue(round(globalCharges));
+        due.setIsSettled(false);
       }
       loanAccountDueRepository.save(due);
     }

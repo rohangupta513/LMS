@@ -16,6 +16,10 @@ public class UserService {
   @Autowired private UserRepository repo;
 
   public User add(User u) {
+    Optional<User> existingUser = repo.findByUserPhone(u.getUserPhone());
+    if (existingUser.isPresent() && (u.getUserId() == null || !existingUser.get().getUserId().equals(u.getUserId()))) {
+        throw new IllegalArgumentException("User with this phone number already exists.");
+    }
     return repo.save(u);
   }
 

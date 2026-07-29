@@ -4,6 +4,7 @@ import com.lms.backend.dto.ErrorResponse;
 import com.lms.backend.dto.LenderResponse;
 import com.lms.backend.entity.Lender;
 import com.lms.backend.service.LenderService;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,13 +20,9 @@ import org.springframework.web.bind.annotation.*;
 public class LenderController {
   @Autowired private LenderService service;
 
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponse> handleException(Exception e) {
-    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
-  }
 
   @PostMapping
-  public ResponseEntity<LenderResponse> add(@RequestBody Lender l) {
+  public ResponseEntity<LenderResponse> add(@Valid @RequestBody Lender l) {
     return ResponseEntity.ok(LenderResponse.fromEntity(service.add(l)));
   }
 
@@ -45,9 +42,9 @@ public class LenderController {
         .get(id)
         .map(
             existing -> {
-              existing.setLenderName(l.getLenderName());
-              existing.setLenderContact(l.getLenderContact());
-              existing.setLenderDetails(l.getLenderDetails());
+              if (l.getLenderName() != null) existing.setLenderName(l.getLenderName());
+              if (l.getLenderContact() != null) existing.setLenderContact(l.getLenderContact());
+              if (l.getLenderDetails() != null) existing.setLenderDetails(l.getLenderDetails());
               return ResponseEntity.ok(LenderResponse.fromEntity(service.add(existing)));
             })
         .orElse(ResponseEntity.notFound().build());

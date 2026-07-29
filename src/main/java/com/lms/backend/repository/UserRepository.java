@@ -10,4 +10,6 @@ import org.springframework.stereotype.Repository;
  * Spring Data JPA Repository interface for UserRepository entities.
  * Provides abstraction for direct database interactions.
  */
-public interface UserRepository extends JpaRepository<User, Long> {}
+public interface UserRepository extends JpaRepository<User, Long> {
+  java.util.Optional<User> findByUserPhone(String userPhone);
+}

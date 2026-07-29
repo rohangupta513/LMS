@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -25,13 +25,9 @@ public class SettlementController {
 
   @Autowired private SettlementService settlementService;
 
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponse> handleException(Exception e) {
-    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
-  }
 
   @PostMapping("/credit")
-  public ResponseEntity<LoanCreditResponse> processCredit(@RequestBody CreditRequest request) {
+  public ResponseEntity<LoanCreditResponse> processCredit(@Valid @RequestBody CreditRequest request) {
     log.info("Received credit payment request for LAN: {}", request.getLan());
     return ResponseEntity.ok(LoanCreditResponse.fromEntity(settlementService.processCredit(request)));
   }

@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,19 +31,15 @@ public class LoanApplicationController {
   @Autowired private ForeclosureService foreclosureService;
   @Autowired private ReactivationService reactivationService;
 
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponse> handleException(Exception e) {
-    return ResponseEntity.badRequest().body(ErrorResponse.of(400, e.getMessage()));
-  }
 
   @PostMapping("/inquire")
-  public ResponseEntity<List<LoanResponse>> inquire(@RequestBody InquireRequest request) {
+  public ResponseEntity<List<LoanResponse>> inquire(@Valid @RequestBody InquireRequest request) {
     log.info("Received loan inquiry request: {}", request);
     return ResponseEntity.ok(loanApplicationService.inquire(request).stream().map(LoanResponse::fromEntity).collect(Collectors.toList()));
   }
 
   @PostMapping("/apply")
-  public ResponseEntity<LoanAccountResponse> apply(@RequestBody ApplyRequest request) {
+  public ResponseEntity<LoanAccountResponse> apply(@Valid @RequestBody ApplyRequest request) {
     log.info("Received loan application request for user: {}", request.getUserId());
     return ResponseEntity.ok(LoanAccountResponse.fromEntity(loanApplicationService.apply(request)));
   }

@@ -5,6 +5,7 @@ import com.lms.backend.entity.LoanAccount;
 import com.lms.backend.entity.RepaymentScheduler;
 import com.lms.backend.enums.LoanStatus;
 import com.lms.backend.enums.RepaymentStatus;
+import com.lms.backend.exception.ResourceNotFoundException;
 import com.lms.backend.repository.LanChargeRepository;
 import com.lms.backend.repository.LoanAccountDueRepository;
 import com.lms.backend.repository.LoanAccountRepository;
@@ -30,7 +31,7 @@ public class ReactivationService {
 
   public LoanAccount activateAccount(Long lan) {
     LoanAccount account = loanAccountRepository.findById(lan)
-        .orElseThrow(() -> new RuntimeException("Loan Account not found"));
+        .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
 
     if (account.getStatus() != LoanStatus.PENDING_CANCELLATION && account.getStatus() != LoanStatus.PENDING_FORECLOSURE) {
       throw new RuntimeException("Account must be in PENDING_CANCELLATION or PENDING_FORECLOSURE to be activated.");
