@@ -10,10 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-/**
- * JPA Entity representing the User database table.
- * Contains the data model and structural mappings.
- */
+
 public class User {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

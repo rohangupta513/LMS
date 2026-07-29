@@ -5,10 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-/**
- * Data Transfer Object (DTO) for CreditRequest.
- * Used to safely transfer data between the client and server layers.
- */
+
 public class CreditRequest {
   @NotNull(message = "LAN is required")
   private Long lan;

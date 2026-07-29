@@ -12,10 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-/**
- * JPA Entity representing the LoanAccount database table.
- * Contains the data model and structural mappings.
- */
+
 public class LoanAccount {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

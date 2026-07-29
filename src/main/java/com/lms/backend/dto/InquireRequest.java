@@ -6,10 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-/**
- * Data Transfer Object (DTO) for InquireRequest.
- * Used to safely transfer data between the client and server layers.
- */
+
 public class InquireRequest {
   @NotNull(message = "Amount is required")
   @Min(value = 0, message = "Amount must be non-negative")

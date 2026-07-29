@@ -5,10 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-/**
- * Data Transfer Object (DTO) for ApplyRequest.
- * Used to safely transfer data between the client and server layers.
- */
+
 public class ApplyRequest {
   @NotNull(message = "User ID is required")
   private Long userId;

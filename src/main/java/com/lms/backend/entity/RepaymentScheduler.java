@@ -13,10 +13,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-/**
- * JPA Entity representing the RepaymentScheduler database table.
- * Contains the data model and structural mappings.
- */
+
 public class RepaymentScheduler {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

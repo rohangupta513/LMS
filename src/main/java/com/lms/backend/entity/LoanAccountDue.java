@@ -11,10 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-/**
- * JPA Entity representing the LoanAccountDue database table.
- * Contains the data model and structural mappings.
- */
+
 public class LoanAccountDue {
   @Id private Long lan;
 
