@@ -211,7 +211,6 @@ public class LoanApplicationService {
 
   /**
    * Retrieves the master ledger (dues) for a specific Loan Account.
-   *
    * @param lan The Loan Account Number (Long).
    * @return The LoanAccountDue entity containing outstanding balances.
    */
@@ -222,7 +221,6 @@ public class LoanApplicationService {
 
   /**
    * Retrieves a list of all active loan accounts in the system.
-   *
    * @return A list of LoanAccount entities.
    */
   public List<LoanAccount> getAllLoanAccounts() {
