@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
  */
 public class LoanService {
   @Autowired private LoanRepository repo;
+  @Autowired private com.lms.backend.repository.LoanAccountRepository loanAccountRepo;
 
   public Loan add(Loan u) {
     return repo.save(u);
@@ -42,6 +43,9 @@ public class LoanService {
   }
 
   public void delete(Long id) {
+    if (loanAccountRepo.countByLoan_LoanId(id) > 0) {
+      throw new IllegalStateException("Cannot delete loan configuration: Loan has associated loan accounts.");
+    }
     repo.deleteById(id);
   }
 }

@@ -15,6 +15,8 @@ import org.springframework.stereotype.Repository;
  */
 public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> {
   long countByUser_UserId(Long userId);
+  long countByLender_LenderId(Long lenderId);
+  long countByLoan_LoanId(Long loanId);
 
   @Query("SELECT COUNT(l) FROM LoanAccount l WHERE l.user.userId = :userId AND l.status NOT IN :excludedStatuses")
   long countActiveLoansByUserId(@Param("userId") Long userId, @Param("excludedStatuses") List<LoanStatus> excludedStatuses);

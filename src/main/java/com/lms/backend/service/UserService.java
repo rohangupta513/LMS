@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
  */
 public class UserService {
   @Autowired private UserRepository repo;
+  @Autowired private com.lms.backend.repository.LoanAccountRepository loanAccountRepo;
 
   public User add(User u) {
     Optional<User> existingUser = repo.findByUserPhone(u.getUserPhone());
@@ -32,6 +33,9 @@ public class UserService {
   }
 
   public void delete(Long id) {
+    if (loanAccountRepo.countByUser_UserId(id) > 0) {
+      throw new IllegalStateException("Cannot delete user: User has associated loan accounts.");
+    }
     repo.deleteById(id);
   }
 }
