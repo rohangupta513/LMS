@@ -16,11 +16,6 @@ import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Service class responsible for handling loan application flows.
- * This includes inquiring about available loans, applying for a loan,
- * verifying the status of a loan by a lender, and managing cancellations or foreclosures.
- */
 @Slf4j
 @Service
 public class LoanApplicationService {

@@ -8,10 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-/**
- * Service class encapsulating business logic for UserService operations.
- * Interfaces with repositories to perform database transactions.
- */
+
 public class UserService {
   @Autowired private UserRepository repo;
   @Autowired private com.lms.backend.repository.LoanAccountRepository loanAccountRepo;

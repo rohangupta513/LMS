@@ -9,10 +9,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-/**
- * Service class encapsulating business logic for ScheduledTasksService operations.
- * Interfaces with repositories to perform database transactions.
- */
+
 public class ScheduledTasksService {
 
     @Autowired

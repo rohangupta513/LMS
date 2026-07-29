@@ -14,11 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Service class responsible for handling loan settlement operations.
- * Manages the processing of user credits (payments) against their loan accounts,
- * implementing a PIC (Principal -> Interest -> Charges) FIFO settlement logic.
- */
 @Slf4j
 @Service
 public class SettlementService {
@@ -31,15 +26,7 @@ public class SettlementService {
   @Autowired private LanChargeRepository lanChargeRepository;
   @Autowired private LoanApplicationService loanApplicationService;
 
-  /**
-   * Processes a new credit request from a user.
-   * Allocates the credited amount to pending RepaymentScheduler dues following
-   * a chronological (oldest first) FIFO order. For each due, the amount is applied
-   * to Principal first, then Interest, then Charges (PIC order).
-   *
-   * @param request The credit request containing the loan account number and the payment amount.
-   * @return The newly created LoanCredit entity in PENDING_LENDER_VERIFICATION status.
-   */
+  //FIFO and PIC
   @Transactional
   public LoanCredit processCredit(CreditRequest request) {
     log.info("Processing credit request for LAN: {}, amount: {}", request.getLan(), request.getAmount());
@@ -50,9 +37,6 @@ public class SettlementService {
 
     LocalDate dateOfCredit = request.getDateOfCredit() != null ? request.getDateOfCredit() : LocalDate.now();
 
-
-    // Automatically calculate and apply any pending penalties up to the date of credit
-    // before we take their money and distribute it!
     if (account.getStatus() != LoanStatus.PENDING_CANCELLATION && account.getStatus() != LoanStatus.PENDING_FORECLOSURE) {
       loanApplicationService.calculateDpdAndPenalties(account.getLan(), dateOfCredit);
     }
@@ -105,14 +89,6 @@ public class SettlementService {
     return credit;
   }
 
-  /**
-   * Verifies and confirms a processed credit.
-   * Changes the status of the LoanCredit from PENDING_LENDER_VERIFICATION to SUCCESS.
-   * Typically called by a lender or an external verification service.
-   *
-   * @param credId The Long ID of the LoanCredit to be verified.
-   * @return The updated LoanCredit entity.
-   */
   @Transactional
   public LoanCredit verifyCredit(Long credId) {
     log.info("Verifying credit ID: {}", credId);
@@ -314,11 +290,6 @@ double remainingAmount = credit.getAmtCredited();
     return credit;
   }
 
-  /**
-   * Recalculates and updates the LoanAccountDue ledger based on the latest RepaymentSchedules.
-   *
-   * @param lan The Loan Account Number (Long) to update.
-   */
   private void updateLoanAccountDue(Long lan) {
     log.info("Recalculating LoanAccountDue ledger for LAN: {}", lan);
     // Recalculate totals from RepaymentScheduler and update LoanAccountDue
@@ -377,64 +348,31 @@ double remainingAmount = credit.getAmtCredited();
     }
   }
 
-  /**
-   * Retrieves all repayment schedules across all loan accounts.
-   *
-   * @return A list of all RepaymentScheduler entities.
-   */
   public List<RepaymentScheduler> getAllSchedules() {
     log.info("Service fetching all repayment schedules");
     return repaymentSchedulerRepository.findAll();
   }
 
-  /**
-   * Retrieves all repayment schedules for a specific Loan Account, ordered by due date.
-   *
-   * @param lan The Loan Account Number (Long).
-   * @return A list of RepaymentScheduler entities for the specified account.
-   */
   public List<RepaymentScheduler> getSchedulesByLan(Long lan) {
     log.info("Service fetching repayment schedules for LAN: {}", lan);
     return repaymentSchedulerRepository.findByLoanAccount_LanOrderByDueDateAsc(lan);
   }
 
-  /**
-   * Retrieves a list of all credits (payments) made across the system.
-   *
-   * @return A list of LoanCredit entities.
-   */
   public List<LoanCredit> getAllCredits() {
     log.info("Service fetching all loan credits");
     return loanCreditRepository.findAll();
   }
 
-  /**
-   * Retrieves a list of all credits (payments) for a specific loan account.
-   *
-   * @param lan The Loan Account Number (Long).
-   * @return A list of LoanCredit entities.
-   */
   public List<LoanCredit> getCreditsByLan(Long lan) {
     log.info("Service fetching loan credits for LAN: {}", lan);
     return loanCreditRepository.findByLoanAccount_Lan(lan);
   }
 
-  /**
-   * Retrieves a list of all settlement audits, detailing exactly how payments were distributed.
-   *
-   * @return A list of SettlementAudit entities.
-   */
   public List<SettlementAudit> getAllAudits() {
     log.info("Service fetching all settlement audits");
     return settlementAuditRepository.findAll();
   }
 
-  /**
-   * Retrieves a list of all settlement audits for a specific loan account.
-   *
-   * @param lan The Loan Account Number (Long).
-   * @return A list of SettlementAudit entities.
-   */
   public List<SettlementAudit> getAuditsByLan(Long lan) {
     log.info("Service fetching settlement audits for LAN: {}", lan);
     return settlementAuditRepository.findByLoanAccount_Lan(lan);

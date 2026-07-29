@@ -8,10 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-/**
- * Service class encapsulating business logic for LenderService operations.
- * Interfaces with repositories to perform database transactions.
- */
+
 public class LenderService {
   @Autowired private LenderRepository repo;
   @Autowired private com.lms.backend.repository.LoanAccountRepository loanAccountRepo;
