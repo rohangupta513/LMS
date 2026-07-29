@@ -2,76 +2,48 @@
 
 Here is the high-level overview of the LMS project's architecture, API surface, and database structure.
 
-## 1. API and Database Flow
-This diagram illustrates the core REST APIs exposed to clients and the relational structure of the database tables they interact with.
+## 1. High-Level Entity & Controller Flow
+This diagram illustrates the core REST Controllers exposed to clients, the database tables they manage, and the relational structure (1:N, 1:1) between those tables.
 
 ```mermaid
-graph TD
-    subgraph "REST APIs (Controllers)"
-        subgraph "User Management"
-            U1[POST /api/users/add]
-            U2[PUT /api/users/update]
-        end
-        
-        subgraph "Lender Management"
-            L1[POST /api/lenders/add]
-            L2[PUT /api/lenders/update]
-        end
-        
-        subgraph "Loan Master Configuration"
-            LM1[POST /api/loans/add]
-            LM2[PUT /api/loans/update]
-        end
-        
-        subgraph "Loan Application Lifecycle"
-            LA1[POST /api/applications/apply]
-            LA2[POST /api/applications/inquire]
-            LA3[POST /api/applications/cancel]
-        end
-        
-        subgraph "Settlement & Payments"
-            S1[POST /api/settlement/credit]
-            S2[POST /api/settlement/verify-credit]
-            S3[POST /api/settlement/foreclose]
-            S4[POST /api/settlement/verify-foreclosure]
-            S5[POST /api/settlement/verify-cancellation]
-            S6[POST /api/settlement/reactivate]
-        end
+flowchart LR
+    subgraph "REST Controllers"
+        U["UserController"]
+        L["LenderController"]
+        LM["LoanController"]
+        LA["LoanApplicationController"]
+        S["SettlementController"]
     end
 
-    subgraph "Database Entities (Tables)"
-        DB_USER[(User)]
-        DB_LENDER[(Lender)]
-        DB_LOAN[(Loan)]
-        DB_LOAN_ACCOUNT[(LoanAccount)]
-        DB_LOAN_DUE[(LoanAccountDue)]
-        DB_REPAYMENT[(RepaymentScheduler)]
-        DB_CREDIT[(LoanCredit)]
-        DB_LAN_CHARGE[(LanCharge)]
+    subgraph "Database Tables (Entities)"
+        DB_USER[("User")]
+        DB_LENDER[("Lender")]
+        DB_LOAN[("Loan")]
+        DB_LOAN_ACCOUNT[("LoanAccount")]
+        DB_LOAN_DUE[("LoanAccountDue")]
+        DB_REPAYMENT[("RepaymentScheduler")]
+        DB_CREDIT[("LoanCredit")]
+        DB_LAN_CHARGE[("LanCharge")]
     end
 
-    %% Relationships
-    DB_USER -->|1:N| DB_LOAN_ACCOUNT
-    DB_LENDER -->|1:N| DB_LOAN
-    DB_LOAN -->|1:N| DB_LOAN_ACCOUNT
-    DB_LOAN_ACCOUNT -->|1:1| DB_LOAN_DUE
-    DB_LOAN_ACCOUNT -->|1:1| DB_LAN_CHARGE
-    DB_LOAN_ACCOUNT -->|1:N| DB_REPAYMENT
-    DB_LOAN_ACCOUNT -->|1:N| DB_CREDIT
+    %% Controller to DB Connections
+    U -->|Manages| DB_USER
+    L -->|Manages| DB_LENDER
+    LM -->|Manages| DB_LOAN
+    LA -->|Creates & Modifies| DB_LOAN_ACCOUNT
+    S -->|Records Payments| DB_CREDIT
+    S -->|Updates Ledger| DB_LOAN_DUE
+    S -->|Updates Schedule| DB_REPAYMENT
+    S -->|Applies Penalties| DB_LAN_CHARGE
 
-    %% API to DB Mapping
-    U1 --> DB_USER
-    U2 --> DB_USER
-    L1 --> DB_LENDER
-    L2 --> DB_LENDER
-    LM1 --> DB_LOAN
-    LM2 --> DB_LOAN
-    LA1 --> DB_LOAN_ACCOUNT
-    LA2 --> DB_LOAN_ACCOUNT
-    LA3 --> DB_LOAN_ACCOUNT
-    S1 --> DB_CREDIT
-    S3 --> DB_LOAN_ACCOUNT
-    S5 --> DB_LOAN_DUE
+    %% DB Relationships
+    DB_USER -.->|1:N| DB_LOAN_ACCOUNT
+    DB_LENDER -.->|1:N| DB_LOAN
+    DB_LOAN -.->|1:N| DB_LOAN_ACCOUNT
+    DB_LOAN_ACCOUNT -.->|1:1| DB_LOAN_DUE
+    DB_LOAN_ACCOUNT -.->|1:1| DB_LAN_CHARGE
+    DB_LOAN_ACCOUNT -.->|1:N| DB_REPAYMENT
+    DB_LOAN_ACCOUNT -.->|1:N| DB_CREDIT
 ```
 
 ## 2. Layered Application Architecture
@@ -303,22 +275,22 @@ When the user pays their final EMI, `SettlementService` handles the automatic cl
 flowchart TD
     %% Standard EMI Payment Process
     subgraph "Standard Payment Processing - SettlementService"
-        A[Start: POST /settlement/verify-credit] --> B[Mark specific RepaymentScheduler dues as PAID]
-        B --> C[Call internal method: updateLoanAccountDue()]
+        A["Start: POST /settlement/verify-credit"] --> B["Mark specific RepaymentScheduler dues as PAID"]
+        B --> C["Call internal method: updateLoanAccountDue()"]
         
-        C --> D{Are there any PENDING dues left?}
-        D -- Yes --> E[Recalculate Next Due Amount & Date]
-        D -- No --> F{Are global penalties/fees <= 0?}
+        C --> D{"Are there any PENDING dues left?"}
+        D -- Yes --> E["Recalculate Next Due Amount & Date"]
+        D -- No --> F{"Are global penalties/fees <= 0?"}
         
-        F -- No --> G[Set Next Due Amount = remaining global charges]
+        F -- No --> G["Set Next Due Amount = remaining global charges"]
         
-        F -- Yes --> H{Is Status PENDING_CANCELLATION <br> OR PENDING_FORECLOSURE?}
+        F -- Yes --> H{"Is Status PENDING_CANCELLATION <br> OR PENDING_FORECLOSURE?"}
         
-        H -- Yes --> I[Skip status update <br/> Leave for strict verify APIs]
+        H -- Yes --> I["Skip status update <br/> Leave for strict verify APIs"]
         
-        H -- No --> J[Mark Ledger as isSettled = true]
-        J --> K[Set all Outstanding Amounts to 0.0]
-        K --> L[Mark Loan Status as CLOSED <br/> MATURITY REACHED]
+        H -- No --> J["Mark Ledger as isSettled = true"]
+        J --> K["Set all Outstanding Amounts to 0.0"]
+        K --> L["Mark Loan Status as CLOSED <br/> MATURITY REACHED"]
     end
     
     style E fill:#ffffe6,stroke:#cccc00,stroke-width:2px,color:#000000
