@@ -115,13 +115,6 @@ public class CancellationService {
       throw new RuntimeException("Cannot verify cancellation. Dues are not fully settled.");
     }
 
-    List<com.lms.backend.entity.LoanCredit> credits = loanCreditRepository.findByLoanAccount_Lan(lan);
-    for (com.lms.backend.entity.LoanCredit credit : credits) {
-      if ("PENDING".equals(credit.getStatus()) || "PENDING_LENDER_VERIFICATION".equals(credit.getStatus())) {
-        throw new RuntimeException("There are pending payments that need verification first.");
-      }
-    }
-
     account.setStatus(LoanStatus.CANCELLED);
     ledger.setIsSettled(true);
     loanAccountDueRepository.save(ledger);
