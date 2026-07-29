@@ -92,24 +92,24 @@ This sequence diagram illustrates a concrete example of how a specific API reque
 sequenceDiagram
     autonumber
     
-    box rgb(240, 248, 255) "Client Layer"
+    box transparent "Client Layer"
         actor User
     end
     
-    box rgb(245, 245, 245) "API Layer"
+    box transparent "API Layer"
         participant Controller as LoanAppController
     end
     
-    box rgb(255, 250, 240) "Business Logic Layer"
+    box transparent "Business Logic Layer"
         participant Service as LoanAppService
     end
     
-    box rgb(240, 255, 240) "Data Access Layer (JPA)"
+    box transparent "Data Access Layer (JPA)"
         participant UserRepo as UserRepository
         participant LoanRepo as LoanAccountRepo
     end
     
-    box rgb(255, 245, 245) "Storage Layer"
+    box transparent "Storage Layer"
         participant DB as Database
     end
 
