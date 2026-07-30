@@ -67,7 +67,7 @@ sequenceDiagram
     else Validation Passed
         Controller->>Service: Call Service Method (DTO to Entity mapping)
         
-        Note over Service: Execute Business Logic <br/>(e.g., Calculate EMI, check rules)
+        Note over Service: Execute Business Logic (e.g., Calculate EMI, check rules)
         
         alt Business Logic / Data Error
             Service-->>ExceptionHandler: Throws RuntimeException or DataAccessException
@@ -92,24 +92,24 @@ This sequence diagram illustrates a concrete example of how a specific API reque
 sequenceDiagram
     autonumber
     
-    box transparent "Client Layer"
+    box "Client Layer"
         actor User
     end
     
-    box transparent "API Layer"
+    box "API Layer"
         participant Controller as LoanAppController
     end
     
-    box transparent "Business Logic Layer"
+    box "Business Logic Layer"
         participant Service as LoanAppService
     end
     
-    box transparent "Data Access Layer (JPA)"
+    box "Data Access Layer (JPA)"
         participant UserRepo as UserRepository
         participant LoanRepo as LoanAccountRepo
     end
     
-    box transparent "Storage Layer"
+    box "Storage Layer"
         participant DB as Database
     end
 
@@ -125,11 +125,11 @@ sequenceDiagram
     activate UserRepo
     UserRepo->>DB: SELECT * FROM user WHERE id = ?
     DB-->>UserRepo: ResultSet (User Row)
-    UserRepo-->>Service: Optional<User>
+    UserRepo-->>Service: Optional(User)
     deactivate UserRepo
     
     %% Internal Logic Step
-    Service->>Service: 1. Validate User & Loan<br/>2. Calculate EMI & Interest<br/>3. Construct Entity
+    Service->>Service: 1. Validate User & Loan, 2. Calculate EMI & Interest, 3. Construct Entity
     
     %% Save Loan Step
     Service->>LoanRepo: save(loanAccount)
@@ -184,17 +184,17 @@ This flowchart details the exact validation checks and business rules enforced d
 flowchart TD
     %% Step 1: Initiate Cancellation
     subgraph "Phase 1: cancelLoan() - CancellationService"
-        A[Start: POST /applications/cancel] --> B{Loan Exists?}
-        B -- No --> B_Err[Throw ResourceNotFoundException]
-        B -- Yes --> C{Is Status ACTIVE?}
-        C -- No --> C_Err[Throw: Only active loans can be cancelled]
-        C -- Yes --> D{Is <= 5 Days from Start Date?}
-        D -- No --> D_Err[Throw: Cancelled within 5 days only]
-        D -- Yes --> E[Mark as PENDING_CANCELLATION]
+        A["Start: POST /applications/cancel"] --> B{"Loan Exists?"}
+        B -- No --> B_Err["Throw ResourceNotFoundException"]
+        B -- Yes --> C{"Is Status ACTIVE?"}
+        C -- No --> C_Err["Throw: Only active loans can be cancelled"]
+        C -- Yes --> D{"Is max 5 Days from Start Date?"}
+        D -- No --> D_Err["Throw: Cancelled within 5 days only"]
+        D -- Yes --> E["Mark as PENDING_CANCELLATION"]
         
-        E --> F[Halt all PENDING dues in RepaymentScheduler]
-        F --> G[Add ₹500 flat Cancellation Fee to LanCharge]
-        G --> H[Update Ledger: Principal + ₹500 Due Immediately]
+        E --> F["Halt all PENDING dues in RepaymentScheduler"]
+        F --> G["Add ₹500 flat Cancellation Fee to LanCharge"]
+        G --> H["Update Ledger: Principal + ₹500 Due Immediately"]
     end
 
     %% Transition
@@ -202,14 +202,14 @@ flowchart TD
 
     %% Step 2: Verify Cancellation
     subgraph "Phase 2: verifyCancellation() - CancellationService"
-        I[Start: POST /settlement/verify-cancellation] --> J{Loan Exists?}
-        J -- No --> J_Err[Throw ResourceNotFoundException]
-        J -- Yes --> K{Is Status PENDING_CANCELLATION?}
-        K -- No --> K_Err[Throw: Account not pending cancellation]
-        K -- Yes --> L{Outstanding Amount > 0 OR Charges > 0?}
-        L -- Yes --> L_Err[Throw: Dues are not fully settled]
-        L -- No --> N[Mark Loan as CANCELLED]
-        N --> O[Mark Ledger as isSettled = true]
+        I["Start: POST /settlement/verify-cancellation"] --> J{"Loan Exists?"}
+        J -- No --> J_Err["Throw ResourceNotFoundException"]
+        J -- Yes --> K{"Is Status PENDING_CANCELLATION?"}
+        K -- No --> K_Err["Throw: Account not pending cancellation"]
+        K -- Yes --> L{"Outstanding Amount > 0 OR Charges > 0?"}
+        L -- Yes --> L_Err["Throw: Dues are not fully settled"]
+        L -- No --> N["Mark Loan as CANCELLED"]
+        N --> O["Mark Ledger as isSettled = true"]
     end
     
     style B_Err fill:#ffe6e6,stroke:#e60000,stroke-width:2px,color:#000000
@@ -230,15 +230,15 @@ This flowchart maps out the two-phase lifecycle of a loan foreclosure request, i
 flowchart TD
     %% Step 1: Initiate Foreclosure
     subgraph "Phase 1: forecloseLoan() - ForeclosureService"
-        A[Start: POST /settlement/foreclose] --> B{Loan Exists?}
-        B -- No --> B_Err[Throw ResourceNotFoundException]
-        B -- Yes --> C{Is Status ACTIVE?}
-        C -- No --> C_Err[Throw: Only Active loans can be foreclosed]
-        C -- Yes --> E[Mark as PENDING_FORECLOSURE]
+        A["Start: POST /settlement/foreclose"] --> B{"Loan Exists?"}
+        B -- No --> B_Err["Throw ResourceNotFoundException"]
+        B -- Yes --> C{"Is Status ACTIVE?"}
+        C -- No --> C_Err["Throw: Only Active loans can be foreclosed"]
+        C -- Yes --> E["Mark as PENDING_FORECLOSURE"]
         
-        E --> F[Consolidate all PENDING dues into one Immediate Due]
-        F --> G[Add ₹1000 flat Foreclosure Fee to LanCharge]
-        G --> H[Update Ledger: Total Due + ₹1000 Due Immediately]
+        E --> F["Consolidate all PENDING dues into one Immediate Due"]
+        F --> G["Add ₹1000 flat Foreclosure Fee to LanCharge"]
+        G --> H["Update Ledger: Total Due + ₹1000 Due Immediately"]
     end
 
     %% Transition
@@ -246,14 +246,14 @@ flowchart TD
 
     %% Step 2: Verify Foreclosure
     subgraph "Phase 2: verifyForeclosure() - ForeclosureService"
-        I[Start: POST /settlement/verify-foreclosure] --> J{Loan Exists?}
-        J -- No --> J_Err[Throw ResourceNotFoundException]
-        J -- Yes --> K{Is Status PENDING_FORECLOSURE?}
-        K -- No --> K_Err[Throw: Account not pending foreclosure]
-        K -- Yes --> L{Is Ledger Settled?}
-        L -- No --> L_Err[Throw: Payment has not been fully settled]
-        L -- Yes --> N[Mark Loan as FORECLOSED]
-        N --> O[Mark Ledger as isForeclosed = true]
+        I["Start: POST /settlement/verify-foreclosure"] --> J{"Loan Exists?"}
+        J -- No --> J_Err["Throw ResourceNotFoundException"]
+        J -- Yes --> K{"Is Status PENDING_FORECLOSURE?"}
+        K -- No --> K_Err["Throw: Account not pending foreclosure"]
+        K -- Yes --> L{"Is Ledger Settled?"}
+        L -- No --> L_Err["Throw: Payment has not been fully settled"]
+        L -- Yes --> N["Mark Loan as FORECLOSED"]
+        N --> O["Mark Ledger as isForeclosed = true"]
     end
     
     style B_Err fill:#ffe6e6,stroke:#e60000,stroke-width:2px,color:#000000
@@ -280,17 +280,17 @@ flowchart TD
         
         C --> D{"Are there any PENDING dues left?"}
         D -- Yes --> E["Recalculate Next Due Amount & Date"]
-        D -- No --> F{"Are global penalties/fees <= 0?"}
+        D -- No --> F{"Are global penalties/fees 0?"}
         
         F -- No --> G["Set Next Due Amount = remaining global charges"]
         
-        F -- Yes --> H{"Is Status PENDING_CANCELLATION <br> OR PENDING_FORECLOSURE?"}
+        F -- Yes --> H{"Is Status PENDING_CANCELLATION OR PENDING_FORECLOSURE?"}
         
-        H -- Yes --> I["Skip status update <br/> Leave for strict verify APIs"]
+        H -- Yes --> I["Skip status update. Leave for strict verify APIs"]
         
         H -- No --> J["Mark Ledger as isSettled = true"]
         J --> K["Set all Outstanding Amounts to 0.0"]
-        K --> L["Mark Loan Status as CLOSED <br/> MATURITY REACHED"]
+        K --> L["Mark Loan Status as CLOSED. MATURITY REACHED"]
     end
     
     style E fill:#ffffe6,stroke:#cccc00,stroke-width:2px,color:#000000
@@ -309,31 +309,31 @@ This flowchart illustrates the recovery mechanism inside `ReactivationService`. 
 flowchart TD
     %% Reactivation Process
     subgraph "Reactivation - ReactivationService"
-        A[Start: POST /settlement/reactivate] --> B{Loan Exists?}
-        B -- No --> B_Err[Throw ResourceNotFoundException]
-        B -- Yes --> C{Is Status PENDING_CANCELLATION <br> or PENDING_FORECLOSURE?}
-        C -- No --> C_Err[Throw: Account must be pending closure]
+        A["Start: POST /settlement/reactivate"] --> B{"Loan Exists?"}
+        B -- No --> B_Err["Throw ResourceNotFoundException"]
+        B -- Yes --> C{"Is Status PENDING_CANCELLATION or PENDING_FORECLOSURE?"}
+        C -- No --> C_Err["Throw: Account must be pending closure"]
         
-        C -- Yes --> D{Are Outstanding Dues <= 0?}
-        D -- Yes --> D_Err[Throw: Charges already paid, cannot reverse]
+        C -- Yes --> D{"Are Outstanding Dues fully paid?"}
+        D -- Yes --> D_Err["Throw: Charges already paid, cannot reverse"]
         
-        D -- No --> E{Was it Cancellation or Foreclosure?}
+        D -- No --> E{"Was it Cancellation or Foreclosure?"}
         
         %% Branch: Cancellation Reversal
-        E -- PENDING_CANCELLATION --> F1[Subtract ₹500 fee from LanCharge]
-        F1 --> F2[Find CANCELLED schedules and restore to PENDING]
+        E -- PENDING_CANCELLATION --> F1["Subtract ₹500 fee from LanCharge"]
+        F1 --> F2["Find CANCELLED schedules and restore to PENDING"]
         
         %% Branch: Foreclosure Reversal
-        E -- PENDING_FORECLOSURE --> G1[Subtract ₹1000 fee from LanCharge]
-        G1 --> G2[Delete the newly aggregated Immediate schedule]
-        G2 --> G3[Find forcefully PAID schedules and restore to PENDING]
+        E -- PENDING_FORECLOSURE --> G1["Subtract ₹1000 fee from LanCharge"]
+        G1 --> G2["Delete the newly aggregated Immediate schedule"]
+        G2 --> G3["Find forcefully PAID schedules and restore to PENDING"]
         
         %% Merge back to common flow
-        F2 --> H[Mark Loan Status back to ACTIVE]
+        F2 --> H["Mark Loan Status back to ACTIVE"]
         G3 --> H
         
-        H --> I[Call calculateDpdAndPenalties to recalculate Master Ledger]
-        I --> J[Return restored LoanAccount]
+        H --> I["Call calculateDpdAndPenalties to recalculate Master Ledger"]
+        I --> J["Return restored LoanAccount"]
     end
     
     style B_Err fill:#ffe6e6,stroke:#e60000,stroke-width:2px,color:#000000
