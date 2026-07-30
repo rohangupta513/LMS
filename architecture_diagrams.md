@@ -16,14 +16,14 @@ flowchart LR
     end
 
     subgraph "Database Tables (Entities)"
-        DB_USER[("User")]
-        DB_LENDER[("Lender")]
-        DB_LOAN[("Loan")]
-        DB_LOAN_ACCOUNT[("LoanAccount")]
-        DB_LOAN_DUE[("LoanAccountDue")]
-        DB_REPAYMENT[("RepaymentScheduler")]
-        DB_CREDIT[("LoanCredit")]
-        DB_LAN_CHARGE[("LanCharge")]
+        DB_USER[(User)]
+        DB_LENDER[(Lender)]
+        DB_LOAN[(Loan)]
+        DB_LOAN_ACCOUNT[(LoanAccount)]
+        DB_LOAN_DUE[(LoanAccountDue)]
+        DB_REPAYMENT[(RepaymentScheduler)]
+        DB_CREDIT[(LoanCredit)]
+        DB_LAN_CHARGE[(LanCharge)]
     end
 
     %% Controller to DB Connections
@@ -152,28 +152,28 @@ This flowchart provides a clean, horizontal mapping of every major REST API endp
 ```mermaid
 flowchart LR
     subgraph "User & Lender Entities"
-        A1("POST /api/users/add") --> A2["UserController.add()"] --> A3["UserService.add()"] --> A4[("INSERT")]
-        B1("PUT /api/users/update") --> B2["UserController.update()"] --> B3["UserService.update()"] --> B4[("UPDATE")]
-        C1("POST /api/lenders/add") --> C2["LenderController.add()"] --> C3["LenderService.add()"] --> C4[("INSERT")]
+        A1("POST /api/users/add") --> A2["UserController.add()"] --> A3["UserService.add()"] --> A4[(INSERT)]
+        B1("PUT /api/users/update") --> B2["UserController.update()"] --> B3["UserService.update()"] --> B4[(UPDATE)]
+        C1("POST /api/lenders/add") --> C2["LenderController.add()"] --> C3["LenderService.add()"] --> C4[(INSERT)]
     end
 
     subgraph "Loan Product Configuration"
-        D1("POST /api/loans/add") --> D2["LoanController.add()"] --> D3["LoanService.add()"] --> D4[("INSERT")]
-        E1("PUT /api/loans/update") --> E2["LoanController.update()"] --> E3["LoanService.update()"] --> E4[("UPDATE")]
+        D1("POST /api/loans/add") --> D2["LoanController.add()"] --> D3["LoanService.add()"] --> D4[(INSERT)]
+        E1("PUT /api/loans/update") --> E2["LoanController.update()"] --> E3["LoanService.update()"] --> E4[(UPDATE)]
     end
 
     subgraph "Loan Application Lifecycle"
-        F1("POST /applications/apply") --> F2["LoanApplicationController.applyForLoan()"] --> F3["LoanApplicationService.applyForLoan()"] --> F4[("INSERT")]
-        G1("POST /applications/inquire") --> G2["LoanApplicationController.inquireLoan()"] --> G3["LoanApplicationService.inquireLoan()"] --> G4[("SELECT")]
-        H1("POST /applications/cancel") --> H2["LoanApplicationController.cancelLoan()"] --> H3["CancellationService.cancelLoan()"] --> H4[("UPDATE")]
+        F1("POST /applications/apply") --> F2["LoanApplicationController.applyForLoan()"] --> F3["LoanApplicationService.applyForLoan()"] --> F4[(INSERT)]
+        G1("POST /applications/inquire") --> G2["LoanApplicationController.inquireLoan()"] --> G3["LoanApplicationService.inquireLoan()"] --> G4[(SELECT)]
+        H1("POST /applications/cancel") --> H2["LoanApplicationController.cancelLoan()"] --> H3["CancellationService.cancelLoan()"] --> H4[(UPDATE)]
     end
 
     subgraph "Settlements & Payments"
-        I1("POST /settlement/credit") --> I2["SettlementController.addCredit()"] --> I3["SettlementService.addCredit()"] --> I4[("INSERT")]
-        J1("POST /settlement/verify-credit") --> J2["SettlementController.verifyCredit()"] --> J3["SettlementService.verifyCredit()"] --> J4[("UPDATE")]
-        K1("POST /settlement/foreclose") --> K2["SettlementController.forecloseLoan()"] --> K3["ForeclosureService.forecloseLoan()"] --> K4[("INSERT/UPDATE")]
-        L1("POST /settlement/verify-foreclosure") --> L2["SettlementController.verifyForeclosure()"] --> L3["ForeclosureService.verifyForeclosure()"] --> L4[("UPDATE")]
-        M1("POST /settlement/reactivate") --> M2["SettlementController.reactivateLoan()"] --> M3["ReactivationService.reactivateLoan()"] --> M4[("UPDATE")]
+        I1("POST /settlement/credit") --> I2["SettlementController.addCredit()"] --> I3["SettlementService.addCredit()"] --> I4[(INSERT)]
+        J1("POST /settlement/verify-credit") --> J2["SettlementController.verifyCredit()"] --> J3["SettlementService.verifyCredit()"] --> J4[(UPDATE)]
+        K1("POST /settlement/foreclose") --> K2["SettlementController.forecloseLoan()"] --> K3["ForeclosureService.forecloseLoan()"] --> K4[(INSERT or UPDATE)]
+        L1("POST /settlement/verify-foreclosure") --> L2["SettlementController.verifyForeclosure()"] --> L3["ForeclosureService.verifyForeclosure()"] --> L4[(UPDATE)]
+        M1("POST /settlement/reactivate") --> M2["SettlementController.reactivateLoan()"] --> M3["ReactivationService.reactivateLoan()"] --> M4[(UPDATE)]
     end
 ```
 
