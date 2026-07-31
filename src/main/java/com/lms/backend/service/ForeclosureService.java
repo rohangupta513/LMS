@@ -29,7 +29,7 @@ public class ForeclosureService {
   private final LoanAccountDueRepository loanAccountDueRepository;
 
   private double round(double value) {
-    return Math.round(value * 100.0) / 100.0;
+    return java.math.BigDecimal.valueOf(value).setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
   }
 
   @Transactional

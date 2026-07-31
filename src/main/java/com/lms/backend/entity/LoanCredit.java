@@ -25,6 +25,12 @@ public class LoanCredit {
 
   @JsonProperty("lan")
   public Long getLan() { return loanAccount != null ? loanAccount.getLan() : null; }
+  
+  @JsonProperty("lan")
+  public void setLan(Long lan) {
+      if (this.loanAccount == null) this.loanAccount = new LoanAccount();
+      this.loanAccount.setLan(lan);
+  }
 
   private LocalDate dateOfCredit;
   private Double amtCredited;

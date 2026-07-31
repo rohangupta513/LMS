@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.CacheManager;
 
 @Slf4j
 @Service
@@ -30,9 +31,10 @@ public class CancellationService {
   private final LanChargeRepository lanChargeRepository;
   private final LoanAccountDueRepository loanAccountDueRepository;
   private final LoanCreditRepository loanCreditRepository;
+  private final CacheManager cacheManager;
 
   private double round(double value) {
-    return Math.round(value * 100.0) / 100.0;
+    return java.math.BigDecimal.valueOf(value).setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
   }
 
   @Transactional
@@ -94,6 +96,16 @@ public class CancellationService {
 
     loanAccountDueRepository.save(due);
     log.info("Successfully applied cancellation charges and marked LAN: {} as PENDING_CANCELLATION", lan);
+    
+    if (cacheManager != null) {
+        if (cacheManager.getCache("loanAccount") != null) cacheManager.getCache("loanAccount").evict(lan);
+        if (cacheManager.getCache("loanAccounts") != null) cacheManager.getCache("loanAccounts").clear();
+        if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
+        if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+        if (cacheManager.getCache("repaymentSchedules") != null) cacheManager.getCache("repaymentSchedules").evict(lan);
+        if (cacheManager.getCache("allRepaymentSchedules") != null) cacheManager.getCache("allRepaymentSchedules").clear();
+    }
+    
     return loanAccountRepository.save(account);
   }
 
@@ -119,7 +131,17 @@ public class CancellationService {
     ledger.setIsSettled(true);
     loanAccountDueRepository.save(ledger);
 
+    loanAccountDueRepository.save(ledger);
+
     log.info("Successfully verified cancellation for LAN: {}. Account is now CANCELLED.", lan);
+    
+    if (cacheManager != null) {
+        if (cacheManager.getCache("loanAccount") != null) cacheManager.getCache("loanAccount").evict(lan);
+        if (cacheManager.getCache("loanAccounts") != null) cacheManager.getCache("loanAccounts").clear();
+        if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
+        if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+    }
+    
     return loanAccountRepository.save(account);
   }
 }

@@ -98,6 +98,19 @@ public class LoanApplicationController {
     return ResponseEntity.ok(LoanAccountDueResponse.fromEntity(loanApplicationService.getLoanAccountDue(lan)));
   }
 
+  @GetMapping("/accounts/{lan}/dues-summary")
+  public ResponseEntity<com.lms.backend.dto.LoanAccountDueSummaryResponse> getLoanAccountDueSummary(@PathVariable Long lan) {
+    log.info("Fetching due summary for loan account LAN: {}", lan);
+    java.util.Map<String, Object> status = loanApplicationService.getNextDueStatus(lan, null);
+    
+    return ResponseEntity.ok(new com.lms.backend.dto.LoanAccountDueSummaryResponse(
+        ((Number) status.get("principal")).doubleValue(),
+        ((Number) status.get("interest")).doubleValue(),
+        ((Number) status.get("charges")).doubleValue(),
+        ((Number) status.get("totalDue")).doubleValue()
+    ));
+  }
+
   @PostMapping("/accounts/{lan}/calculate-dpd")
   public ResponseEntity<LoanAccountResponse> calculateDpdAndPenalties(@PathVariable Long lan) {
     log.info("Triggering explicit DPD and penalty calculation for LAN: {}", lan);

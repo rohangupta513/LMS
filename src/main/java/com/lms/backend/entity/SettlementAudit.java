@@ -25,6 +25,12 @@ public class SettlementAudit {
 
   @JsonProperty("rpsId")
   public Long getRpsId() { return repaymentScheduler != null ? repaymentScheduler.getRpsId() : null; }
+  
+  @JsonProperty("rpsId")
+  public void setRpsId(Long rpsId) {
+      if (this.repaymentScheduler == null) this.repaymentScheduler = new RepaymentScheduler();
+      this.repaymentScheduler.setRpsId(rpsId);
+  }
 
   @ManyToOne
   @JoinColumn(name = "cred_id")
@@ -33,6 +39,12 @@ public class SettlementAudit {
 
   @JsonProperty("credId")
   public Long getCredId() { return loanCredit != null ? loanCredit.getCredId() : null; }
+  
+  @JsonProperty("credId")
+  public void setCredId(Long credId) {
+      if (this.loanCredit == null) this.loanCredit = new LoanCredit();
+      this.loanCredit.setCredId(credId);
+  }
 
   @ManyToOne
   @JoinColumn(name = "lan")
@@ -41,6 +53,12 @@ public class SettlementAudit {
 
   @JsonProperty("lan")
   public Long getLan() { return loanAccount != null ? loanAccount.getLan() : null; }
+  
+  @JsonProperty("lan")
+  public void setLan(Long lan) {
+      if (this.loanAccount == null) this.loanAccount = new LoanAccount();
+      this.loanAccount.setLan(lan);
+  }
 
   private LocalDate dueDate;
   private Double dueForThisMonth;

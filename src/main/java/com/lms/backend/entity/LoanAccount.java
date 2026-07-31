@@ -25,6 +25,12 @@ public class LoanAccount {
 
   @JsonProperty("userId")
   public Long getUserId() { return user != null ? user.getUserId() : null; }
+  
+  @JsonProperty("userId")
+  public void setUserId(Long userId) {
+      if (this.user == null) this.user = new User();
+      this.user.setUserId(userId);
+  }
 
   @ManyToOne
   @JoinColumn(name = "lender_id")
@@ -33,6 +39,12 @@ public class LoanAccount {
 
   @JsonProperty("lenderId")
   public Long getLenderId() { return lender != null ? lender.getLenderId() : null; }
+  
+  @JsonProperty("lenderId")
+  public void setLenderId(Long lenderId) {
+      if (this.lender == null) this.lender = new Lender();
+      this.lender.setLenderId(lenderId);
+  }
 
   @ManyToOne
   @JoinColumn(name = "loan_id")
@@ -41,6 +53,12 @@ public class LoanAccount {
 
   @JsonProperty("loanId")
   public Long getLoanId() { return loan != null ? loan.getLoanId() : null; }
+  
+  @JsonProperty("loanId")
+  public void setLoanId(Long loanId) {
+      if (this.loan == null) this.loan = new Loan();
+      this.loan.setLoanId(loanId);
+  }
 
   private Double rateOfInterest;
   private Double amount;

@@ -11,6 +11,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.CacheManager;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +27,7 @@ public class SettlementService {
   @Autowired private SettlementAuditRepository settlementAuditRepository;
   @Autowired private LanChargeRepository lanChargeRepository;
   @Autowired private LoanApplicationService loanApplicationService;
+  @Autowired private CacheManager cacheManager;
 
   //FIFO and PIC
   @Transactional
@@ -58,8 +61,8 @@ public class SettlementService {
 
     double maxAllowedPayment = globalChargesDue;
     for (RepaymentScheduler due : dues) {
-      if (account.getStatus() == LoanStatus.PENDING_FORECLOSURE || 
-          account.getStatus() == LoanStatus.PENDING_CANCELLATION || 
+      if (account.getStatus() == LoanStatus.PENDING_FORECLOSURE ||
+          account.getStatus() == LoanStatus.PENDING_CANCELLATION ||
           !due.getDueDate().isAfter(dateOfCredit)) {
         maxAllowedPayment += due.getTotalDue();
       }
@@ -84,8 +87,14 @@ public class SettlementService {
             .status("PENDING")
             .build();
 
-        credit.setStatus("PENDING_LENDER_VERIFICATION");
+    credit.setStatus("PENDING_LENDER_VERIFICATION");
     credit = loanCreditRepository.save(credit);
+    
+    if (cacheManager != null) {
+        if (cacheManager.getCache("loanCredits") != null) cacheManager.getCache("loanCredits").evict(request.getLan());
+        if (cacheManager.getCache("allLoanCredits") != null) cacheManager.getCache("allLoanCredits").clear();
+    }
+    
     return credit;
   }
 
@@ -200,7 +209,7 @@ double remainingAmount = credit.getAmtCredited();
         }
         lanChargeRepository.save(lanCharge);
       }
-      
+
       if (!globalChargesPaid) {
           globalChargesPaid = true;
       }
@@ -248,7 +257,7 @@ double remainingAmount = credit.getAmtCredited();
     // If there were no dues, but there were global charges, we should settle them here!
     if (remainingAmount > 0 && !globalChargesPaid && lanCharge != null) {
         double cSettled = 0;
-        
+
         if (lanCharge.getPenalCharges() > 0) {
             double cDue = lanCharge.getPenalCharges();
             if (remainingAmount >= cDue) {
@@ -261,7 +270,7 @@ double remainingAmount = credit.getAmtCredited();
               remainingAmount = 0;
             }
         }
-        
+
         if (remainingAmount > 0 && lanCharge.getOtherFees() > 0) {
             double fDue = lanCharge.getOtherFees();
             if (remainingAmount >= fDue) {
@@ -285,8 +294,24 @@ double remainingAmount = credit.getAmtCredited();
 
     loanCreditRepository.save(credit);
 
-    
+
     updateLoanAccountDue(account.getLan());
+    
+    if (cacheManager != null) {
+        Long lan = account.getLan();
+        if (cacheManager.getCache("loanCredits") != null) cacheManager.getCache("loanCredits").evict(lan);
+        if (cacheManager.getCache("allLoanCredits") != null) cacheManager.getCache("allLoanCredits").clear();
+        
+        if (cacheManager.getCache("repaymentSchedules") != null) cacheManager.getCache("repaymentSchedules").evict(lan);
+        if (cacheManager.getCache("allRepaymentSchedules") != null) cacheManager.getCache("allRepaymentSchedules").clear();
+        
+        if (cacheManager.getCache("settlementAudits") != null) cacheManager.getCache("settlementAudits").evict(lan);
+        if (cacheManager.getCache("allSettlementAudits") != null) cacheManager.getCache("allSettlementAudits").clear();
+        
+        if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
+        if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+    }
+    
     return credit;
   }
 
@@ -348,37 +373,43 @@ double remainingAmount = credit.getAmtCredited();
     }
   }
 
+  @Cacheable(value = "allRepaymentSchedules")
   public List<RepaymentScheduler> getAllSchedules() {
     log.info("Service fetching all repayment schedules");
     return repaymentSchedulerRepository.findAll();
   }
 
+  @Cacheable(value = "repaymentSchedules", key = "#lan")
   public List<RepaymentScheduler> getSchedulesByLan(Long lan) {
     log.info("Service fetching repayment schedules for LAN: {}", lan);
     return repaymentSchedulerRepository.findByLoanAccount_LanOrderByDueDateAsc(lan);
   }
 
+  @Cacheable(value = "allLoanCredits")
   public List<LoanCredit> getAllCredits() {
     log.info("Service fetching all loan credits");
     return loanCreditRepository.findAll();
   }
 
+  @Cacheable(value = "loanCredits", key = "#lan")
   public List<LoanCredit> getCreditsByLan(Long lan) {
     log.info("Service fetching loan credits for LAN: {}", lan);
     return loanCreditRepository.findByLoanAccount_Lan(lan);
   }
 
+  @Cacheable(value = "allSettlementAudits")
   public List<SettlementAudit> getAllAudits() {
     log.info("Service fetching all settlement audits");
     return settlementAuditRepository.findAll();
   }
 
+  @Cacheable(value = "settlementAudits", key = "#lan")
   public List<SettlementAudit> getAuditsByLan(Long lan) {
     log.info("Service fetching settlement audits for LAN: {}", lan);
     return settlementAuditRepository.findByLoanAccount_Lan(lan);
   }
 
   private double round(double value) {
-    return Math.round(value * 100.0) / 100.0;
+    return java.math.BigDecimal.valueOf(value).setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
   }
 }

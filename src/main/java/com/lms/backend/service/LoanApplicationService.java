@@ -13,6 +13,10 @@ import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.cache.CacheManager;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,6 +33,7 @@ public class LoanApplicationService {
   @Autowired private LoanCreditRepository loanCreditRepository;
   @Autowired private LanChargeRepository lanChargeRepository;
   @Autowired private SettlementAuditRepository settlementAuditRepository;
+  @Autowired private CacheManager cacheManager;
 
   public List<Loan> inquire(InquireRequest request) {
     log.info("Inquiring loans for amount: {} and type: {}", request.getAmount(), request.getTypeOfLoan());
@@ -40,6 +45,7 @@ public class LoanApplicationService {
   }
 
 
+  @CacheEvict(value = "loanAccounts", allEntries = true)
   public LoanAccount apply(ApplyRequest request) {
     log.info("Processing loan application for user ID: {}", request.getUserId());
     User user =
@@ -93,6 +99,10 @@ public class LoanApplicationService {
   }
 
 
+  @Caching(evict = { 
+    @CacheEvict(value = "loanAccount", key = "#lan"), 
+    @CacheEvict(value = "loanAccounts", allEntries = true) 
+  })
   @Transactional
   public LoanAccount verifyStatus(Long lan, LoanStatus status) {
     LoanAccount account =
@@ -168,16 +178,19 @@ public class LoanApplicationService {
   }
 
 
+  @Cacheable(value = "loanAccount", key = "#lan")
   public LoanAccount getLoanAccount(Long lan) {
     return loanAccountRepository.findById(lan)
         .orElseThrow(() -> new ResourceNotFoundException("Loan Account not found"));
   }
 
+  @Cacheable(value = "loanDues", key = "#lan")
   public LoanAccountDue getLoanAccountDue(Long lan) {
     return loanAccountDueRepository.findById(lan)
         .orElseThrow(() -> new ResourceNotFoundException("Loan Account Due not found"));
   }
 
+  @Cacheable(value = "loanAccounts")
   public List<LoanAccount> getAllLoanAccounts() {
     return loanAccountRepository.findAll();
   }
@@ -264,11 +277,17 @@ public class LoanApplicationService {
         dueLedger.setTotalChargesDue(round(lanCharge.getPenalCharges() + lanCharge.getOtherFees()));
         loanAccountDueRepository.save(dueLedger);
     }
+    
+    if (cacheManager != null) {
+      if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+      if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
+    }
+    
     return account;
   }
 
   private double round(double value) {
-    return Math.round(value * 100.0) / 100.0;
+    return java.math.BigDecimal.valueOf(value).setScale(2, java.math.RoundingMode.HALF_UP).doubleValue();
   }
 
   public java.util.Map<String, Object> getNextDueStatus(Long lan, LocalDate dateOfCredit) {
@@ -350,6 +369,7 @@ public class LoanApplicationService {
     return totalOutstanding > 0 ? "You have " + totalOutstanding + " remaining to settle the loan." : "Loan is fully settled.";
   }
 
+  @Cacheable(value = "lanCharges", key = "#lan")
   public LanCharge getLanCharge(Long lan) {
     return lanChargeRepository.findById(lan).orElse(null);
   }
