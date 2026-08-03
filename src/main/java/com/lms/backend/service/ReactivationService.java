@@ -16,6 +16,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.CacheManager;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,7 @@ public class ReactivationService {
   private final RepaymentSchedulerRepository repaymentSchedulerRepository;
   private final LanChargeRepository lanChargeRepository;
   private final LoanAccountDueRepository loanAccountDueRepository;
+  private final CacheManager cacheManager;
   
   @Lazy
   private final LoanApplicationService loanApplicationService;
@@ -76,6 +78,15 @@ public class ReactivationService {
     // 3. Mark the account back as ACTIVE!
     account.setStatus(LoanStatus.ACTIVE);
     loanAccountRepository.save(account);
+
+    if (cacheManager != null) {
+        if (cacheManager.getCache("loanAccount") != null) cacheManager.getCache("loanAccount").evict(lan);
+        if (cacheManager.getCache("loanAccounts") != null) cacheManager.getCache("loanAccounts").clear();
+        if (cacheManager.getCache("repaymentSchedules") != null) cacheManager.getCache("repaymentSchedules").evict(lan);
+        if (cacheManager.getCache("allRepaymentSchedules") != null) cacheManager.getCache("allRepaymentSchedules").clear();
+        if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+        if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
+    }
 
     // 4. Force a recalculation of the master ledger so the UI numbers go back to normal
     return loanApplicationService.calculateDpdAndPenalties(lan, LocalDate.now());

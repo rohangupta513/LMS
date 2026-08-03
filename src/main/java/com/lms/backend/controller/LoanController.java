@@ -13,10 +13,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/loans")
-/**
- * REST Controller handling incoming HTTP requests for LoanController entities.
- * Exposes endpoints for CRUD operations and business logic flows.
- */
+
 public class LoanController {
   @Autowired private LoanService service;
 

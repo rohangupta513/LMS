@@ -140,6 +140,8 @@ public class CancellationService {
         if (cacheManager.getCache("loanAccounts") != null) cacheManager.getCache("loanAccounts").clear();
         if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
         if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+        if (cacheManager.getCache("repaymentSchedules") != null) cacheManager.getCache("repaymentSchedules").evict(lan);
+        if (cacheManager.getCache("allRepaymentSchedules") != null) cacheManager.getCache("allRepaymentSchedules").clear();
     }
     
     return loanAccountRepository.save(account);

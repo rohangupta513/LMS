@@ -17,10 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/api/settlement")
-/**
- * REST Controller handling incoming HTTP requests for SettlementController entities.
- * Exposes endpoints for CRUD operations and business logic flows.
- */
+
 public class SettlementController {
 
   @Autowired private SettlementService settlementService;
