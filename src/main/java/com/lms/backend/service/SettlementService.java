@@ -310,6 +310,9 @@ double remainingAmount = credit.getAmtCredited();
         
         if (cacheManager.getCache("loanDues") != null) cacheManager.getCache("loanDues").evict(lan);
         if (cacheManager.getCache("lanCharges") != null) cacheManager.getCache("lanCharges").evict(lan);
+        
+        if (cacheManager.getCache("loanAccount") != null) cacheManager.getCache("loanAccount").evict(lan);
+        if (cacheManager.getCache("loanAccounts") != null) cacheManager.getCache("loanAccounts").clear();
     }
     
     return credit;

@@ -13,10 +13,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
-/**
- * REST Controller handling incoming HTTP requests for UserController entities.
- * Exposes endpoints for CRUD operations and business logic flows.
- */
+
 public class UserController {
   @Autowired private UserService service;
 

@@ -13,10 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/lenders")
-/**
- * REST Controller handling incoming HTTP requests for LenderController entities.
- * Exposes endpoints for CRUD operations and business logic flows.
- */
+
 public class LenderController {
   @Autowired private LenderService service;
 
